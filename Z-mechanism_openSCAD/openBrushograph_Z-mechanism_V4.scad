@@ -11,11 +11,11 @@ $fn = 96;
 
 //Z_rail ();
 //Z_gearwheel ();
-//Z_rackpen (M3_insert); // M3_screwhole, M3_insert
+Z_rackpen (M3_insert); // M3_screwhole, M3_insert
 
 //translate([25.5,-6.8+tight,18.5]) penHolder();
 //translate([25.5,-6.8+tight,18.5]) brushInsert(6.5);
-handWheel();
+//handWheel();
 
 //linear_extrude(32, center=true, scale=1) polygon(points=[[0,0],[2,2],[8,2],[10,0]]);
 
@@ -25,7 +25,7 @@ handWheel();
 module Z_rackpen(lochli){
   translate([0,0,10]) difference(){
     color("fuchsia") translate([0,tight-0.2,15]) Z_rack ();
-    #translate([dist+5.5,0.2,9.2]) rotate([90,0,0]) cylinder(21, d=lochli, center=false); // bigger hole for insert, uncomment if needed
+    #translate([dist+5.5,2,9.2]) rotate([90,0,0]) cylinder(21, d=lochli, center=false); // bigger hole for insert, uncomment if needed
     translate([dist+6,-6.68+tight,8.8]) cube([10,3.1,12.4], center = true); 
     translate([dist+6,-6.68+tight,50]) cube([1.8,18.1,12], center = true); 
     translate([dist+6.8,-6.68+tight,45]) cube([2.0,18.1,2], center = true); 
@@ -92,9 +92,9 @@ module penHolder(){
     difference(){
         union(){
             translate([-11.5,0,-0.8]) cube([12,3,11.3], center = true);
-            translate([-14,-2.5,0]) rotate([90,0,0]) cylinder(h = 2.4, d =7, center = true);
+            translate([-14,-2.8,0]) rotate([90,0,0]) cylinder(h = 2.6, d =7, center = true);
         }
-    translate([-14,10,0]) rotate([90,0,0]) cylinder(20, d=2.9, center=false); 
+    #translate([-14,10,0]) rotate([90,0,0]) cylinder(20, d=3.2, center=false); 
         cylinder(h = 23, d =pen_diam, center = true);
         // penholder-Holes
     
