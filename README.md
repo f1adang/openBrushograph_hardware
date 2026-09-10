@@ -16,7 +16,6 @@ https://wiki.sgmk-ssam.ch/wiki/Brushograph
 ![openBrushograph](docs/brushograph_closeup.gif)
 
 ## Downloads (FreeCAD & Pre-exported STLs)
-![openBrushograph Wide](docs/brushograph_wide2.jpg)
 
 If you just want to get printing immediately, you can grab the FreeCAD source file or the pre-exported STL folders below:
 - **FreeCAD Source File:** [brushograf_V6.FCStd](X-Y_freeCAD/brushograf_V6.FCStd)
@@ -102,6 +101,29 @@ For structural parts (like the gantry mounts and Z-mechanism):
 - If you find the default hole sizes are too tight or loose for your specific inserts, remember you can always tweak the `M3_hole_diameter_3d_printing` parameter in the FreeCAD spreadsheet and re-export the STLs using the build script!
 
 More context, detailed assembly instructions and legacy designs: https://wiki.sgmk-ssam.ch/wiki/Brushograph#Printing_and_assembling_the_Brushograph
+
+## Bill of Materials (BOM)
+A quick overview of the required printed parts and hardware is below (for the raw data, see `BOM.csv`):
+
+| Assembly | Part | Qty | Notes |
+|----------|------|-----|-------|
+| X | `openBrushograph_x_rail_part.stl` | 1 | Print |
+| X | `openBrushograph_x_rack_part.stl` | 1 | Print; higher infill recommended |
+| X | `openBrushograph_x_pinion_part.stl` | 1 | Print (its same as y_pinion)
+| X | `openBrushograph_x_endstop_part.stl` | 1 | Print |
+| Y | `openBrushograph_y_rail_part.stl` | 1 | Print |
+| Y | `openBrushograph_y_rack_part.stl` | 1 | Print; higher infill recommended |
+| Y | `openBrushograph_y_pinion_part.stl` | 1 | Print (its same as x_pinion) |
+| Z | `openBrushograph_rail_Z-mechanism.stl` | 1 | Print |
+| Z | `openBrushograph_rack_Z-mechanism.stl` | 1 | Print |
+| Z | `openBrushograph_handWheel.stl` | 1 | Print|
+| Z | `openBrushograph_penHolder_Insert_6.5.stl` | 1 | Variants available for different brushes |
+| flat-head Screw | M3x6 | 4 | Estimate; to verify |
+| machine Screw | M3x6 | 6 | Estimate; to verify |
+| Wood-Screw | M3x16 | 4 | Estimate; to verify |
+| Screw| M4x16 | 1 | for handWheel |
+
+*Note: Motors and specific electrical hardware will depend on your chosen controller setup (e.g., 28BYJ-48 unipolar steppers).*
 
 ## Related links and credits
 ### Credits
