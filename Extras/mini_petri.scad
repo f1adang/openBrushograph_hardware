@@ -335,7 +335,7 @@ module crucible(w = pan_w) {
 
 // --- Render ---
 if (part == "holder" || part == "assembled") {
-    petri_holder();
+    translate([-30,0,0]) petri_holder();
 }
 
 if (part == "single_crucible") {
@@ -354,6 +354,6 @@ if (part == "assembled") {
         z_pos = has_bottom ? bottom_t : 0;
         
         translate([cx, cy, z_pos])
-            crucible(pw);
+            translate([-30,0,0]) crucible(pw);
     }
 }

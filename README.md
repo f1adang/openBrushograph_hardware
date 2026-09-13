@@ -22,6 +22,7 @@ If you just want to get printing immediately, you can grab the FreeCAD source fi
 
 ### Standard Version
 - **Mini Variant (M3=2.7mm):** [STLs/brushograf_V6_Mini_M3_2.7mm_STLs](X-Y_freeCAD/STLs/brushograf_V6_Mini_M3_2.7mm_STLs/)
+- **Z-Mechanism STLs:** [Z-mechanism_V4_STL](Z-mechanism_openSCAD/Z-mechanism_V4_STL/)
 
 ### Special Designs
 - **Micro Variant (M3=2.7mm):** [STLs/brushograf_V6_Micro_M3_2.7mm_STLs](X-Y_freeCAD/STLs/brushograf_V6_Micro_M3_2.7mm_STLs/)
@@ -102,28 +103,48 @@ For structural parts (like the gantry mounts and Z-mechanism):
 
 More context, detailed assembly instructions and legacy designs: https://wiki.sgmk-ssam.ch/wiki/Brushograph#Printing_and_assembling_the_Brushograph
 
-## Bill of Materials (BOM)
-A quick overview of the required printed parts and hardware is below (for the raw data, see `BOM.csv`):
+## Bill of Materials (BOM) (in progress...)
+A quick overview of the required printed parts and hardware is below:
 
+### X-Y Assembly
 | Assembly | Part | Qty | Notes |
 |----------|------|-----|-------|
 | X | `openBrushograph_x_rail_part.stl` | 1 | Print |
 | X | `openBrushograph_x_rack_part.stl` | 1 | Print; higher infill recommended |
-| X | `openBrushograph_x_pinion_part.stl` | 1 | Print (its same as y_pinion)
+| X | `openBrushograph_x_pinion_part.stl` | 1 | Print (its same as y_pinion) |
 | X | `openBrushograph_x_endstop_part.stl` | 1 | Print |
 | Y | `openBrushograph_y_rail_part.stl` | 1 | Print |
 | Y | `openBrushograph_y_rack_part.stl` | 1 | Print; higher infill recommended |
 | Y | `openBrushograph_y_pinion_part.stl` | 1 | Print (its same as x_pinion) |
+
+### Z Assembly
+| Assembly | Part | Qty | Notes |
+|----------|------|-----|-------|
 | Z | `openBrushograph_rail_Z-mechanism.stl` | 1 | Print |
 | Z | `openBrushograph_rack_Z-mechanism.stl` | 1 | Print |
-| Z | `openBrushograph_handWheel.stl` | 1 | Print|
+| Z | `openBrushograph_handWheel.stl` | 1 | Print |
 | Z | `openBrushograph_penHolder_Insert_6.5.stl` | 1 | Variants available for different brushes |
-| flat-head Screw | M3x6 | 4 | Estimate; to verify |
-| machine Screw | M3x6 | 6 | Estimate; to verify |
-| Wood-Screw | M3x16 | 4 | Estimate; to verify |
-| Screw| M4x16 | 1 | for handWheel |
 
-*Note: Motors and specific electrical hardware will depend on your chosen controller setup (e.g., 28BYJ-48 unipolar steppers).*
+### Screws & Hardware
+| Type | Image | Part | Qty | Notes |
+|------|-------|------|-----|-------|
+| flat-head Screw | [<img src="BOM/flathead_screw_M3_6mm.png" height="50" />](BOM/flathead_screw_M3_6mm.png) | M3x6 | 4 | to fit below the rack into the rails. [Shop Link](https://www.aliexpress.com/item/1005003126053325.html) |
+| machine Screw | [<img src="BOM/machine_screw_M3_6mm.png" height="50" />](BOM/machine_screw_M3_6mm.png) | M3x6 | 6 | to mount the motors. mbe use longer ones on the z-axes. [Shop Link](https://www.aliexpress.com/item/32810872544.html) |
+| Wood-Screw | [<img src="BOM/wood_screw_M3_6mm.png" height="50" />](BOM/wood_screw_M3_6mm.png) | M3x6 | 4 | Longer screws if you have a thick wooden base board. [Shop Link](https://www.aliexpress.com/item/1005009268426636.html) |
+| Screw | | M4x16 | 1 | for handWheel |
+
+### Optional: Threaded Inserts
+| Type | Part | Qty | Notes |
+|------|------|-----|-------|
+| Threaded Insert | M3 | 10 | For a stronger assembly. |
+
+*Note: If you are using threaded inserts, a different model variant with wider holes has to be printed, or the standard holes can simply be drilled out with a 4mm drill bit to make them wider.*
+
+### Electronics / PCB
+The BOM and design files for the custom printed circuit board (PCB) are documented in a dedicated repository:
+[Brushograph_PCB](https://github.com/openBrushograph/Brushograph_PCB)
+
+![Brushograph PCB](https://raw.githubusercontent.com/openBrushograph/Brushograph_PCB/master/photos/PCB_white.jpg)
 
 ## Related links and credits
 ### Credits
