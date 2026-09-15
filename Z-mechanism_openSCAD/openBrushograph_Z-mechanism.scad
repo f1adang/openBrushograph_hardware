@@ -7,21 +7,60 @@ $fn = 96;
 // To Do:
 // Implement gears as imported library
 
-//color("DarkSlateGray") translate([-25,8,9.6]) rotate([90,0,90]) import("StepMotorModelScaled.stl");
+/* [Render Selection] */
+// Which part to display?
+part_to_render = "assembly"; // [assembly:Full Assembly, rail:Z Rail, gearwheel:Z Gearwheel, rackpen:Z Rackpen, pen_holder:Pen Holder, brush_insert:Brush Insert, hand_wheel:Hand Wheel]
 
-//Z_rail ();
-//Z_gearwheel ();
-Z_rackpen (M3_insert); // M3_screwhole, M3_insert
+/* [General Shape] */
+round_edge = 4; // dont go more than 5
+slide_tol = 0.6; // adjust this for tolerance
+tight = 2.4; // Moves the rack closer to the wheel. Needs to be changed when gearwheel size changes
+dist = 2.8; // i dont know what this parameter does...
+overallHeight = 64; // not yet implemented
 
-//translate([25.5,-6.8+tight,18.5]) penHolder();
-//translate([25.5,-6.8+tight,18.5]) brushInsert(6.5);
-//handWheel();
+/* [Gears and Wheels] */
+tooth_angle = 0;
+tooth_size = 1; // modul = Height of the tooth tip above the pitch line
+rackWidth = 8; // width of rack with teeth
+rackDepth= 6; // depth of rack with teeth (some mistake when this is not 6)
 
-//linear_extrude(32, center=true, scale=1) polygon(points=[[0,0],[2,2],[8,2],[10,0]]);
+/* [Pen Holder] */
+pen_diam = 12;
 
+/* [Holes and Screws] */
+M3_screwhole = 2.8; // tight to screw into it
+M3_insert = 4.1;
+M3_hole = 3.5; // loose to push screw through it
+M3_screwhead = 5.8; // lower the screwhead into the material
+M4_screwhole = 3.9; // tight to screw into it
+Z_luft = 0.1; // increase size of shaft hole for z-wheel
 
-//color("fuchsia") translate([0,tight-0.2,15]) Z_rack ();
-// Z-rack with mounatble penHolder
+/* [Hidden] */
+// Uncomment if you have the StepMotor STL
+// color("DarkSlateGray") translate([-25,8,9.6]) rotate([90,0,90]) import("StepMotorModelScaled.stl");
+
+if (part_to_render == "assembly") {
+    Z_rail();
+    Z_gearwheel();
+    Z_rackpen(M3_insert);
+    translate([25.5,-6.8+tight,18.5]) penHolder();
+    translate([25.5,-6.8+tight,18.5]) brushInsert(6.5);
+    // handWheel(); // Uncomment if you want to see it in the assembly
+} else if (part_to_render == "rail") {
+    Z_rail();
+} else if (part_to_render == "gearwheel") {
+    Z_gearwheel();
+} else if (part_to_render == "rackpen") {
+    Z_rackpen(M3_insert); // Alternatively use M3_screwhole
+} else if (part_to_render == "pen_holder") {
+    penHolder();
+} else if (part_to_render == "brush_insert") {
+    brushInsert(6.5);
+} else if (part_to_render == "hand_wheel") {
+    handWheel();
+}
+
+// Z-rack with mountable penHolder
 module Z_rackpen(lochli){
   translate([0,0,10]) difference(){
     color("fuchsia") translate([0,tight-0.2,15]) Z_rack ();
@@ -31,32 +70,6 @@ module Z_rackpen(lochli){
     translate([dist+6.8,-6.68+tight,45]) cube([2.0,18.1,2], center = true); 
   }
 }
-
-
-
-// general shape of mechanism
-round_edge = 4; // dont go more than 5
-slide_tol = 0.6; // adjust this for tolerance
-tight = 2.4; // Moves the rack closer to the wheel. Needs to be changed when gearwheel size changes
-dist = 2.8; // i dont know what this parameter does...
-overallHeight = 64; // not yet implemented
-
-// gears and wheels
-tooth_angle = 0;
-tooth_size = 1; // modul = Height of the tooth tip above the pitch line
-rackWidth = 8; // width of rack with teeth
-rackDepth= 6; // depth of rack with teeth (some mistake when this is not 6)
-
-// Pen Holder
-pen_diam = 12;
-
-// Holes and screws
-M3_screwhole = 2.8; // tight to screw into it
-M3_insert = 4.1;
-M3_hole = 3.5; // loose to push screw through it
-M3_screwhead = 5.8; // lower the screwhead into the material
-M4_screwhole = 3.9; // tight to screw into it
-Z_luft = 0.1; // increase size of shaft hole for z-wheel
 
 module brushInsert(brushHole){
     difference(){
