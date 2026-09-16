@@ -1,4 +1,4 @@
-$fn = 96;
+$fn = 30;
 
 // Redesigned and modified from https://www.thingiverse.com/thing:5719788
 // Now available in OpenSCAD, for further modifications
@@ -9,49 +9,80 @@ $fn = 96;
 
 /* [Render Selection] */
 // Which part to display?
-part_to_render = "assembly"; // [assembly:Full Assembly, core:Core Assembly (Rail/Rack/Gear), rail:Z Rail, gearwheel:Z Gearwheel, rackpen:Z Rackpen, pen_holder:Pen Holder, brush_insert:Brush Insert, hand_wheel:Hand Wheel]
+part_to_render = "core"; // [assembly:Full Assembly, core:Core Assembly (Rail/Rack/Gear), rail:Z Rail, gearwheel:Z Gearwheel, rackpen:Z Rackpen, pen_holder:Pen Holder, brush_insert:Brush Insert, hand_wheel:Hand Wheel]
 // Resolution of rounded edges in Preview mode (F5)
 preview_fn = 12; // [4:2:32]
+// Move the rack up and down in the assembly view to check collisions
+assembly_z_travel = -2.5; // [-30:0.5:20]
 
 /* [General Shape] */
-round_edge = 4; // dont go more than 5
-slide_tol = 0.6; // adjust this for tolerance
-tight = 2.4; // Moves the rack closer to the wheel. Needs to be changed when gearwheel size changes
-dist = 2.8; // i dont know what this parameter does...
-overallHeight = 64; // not yet implemented
+// Diameter of the spherical tool used to round corners (don't exceed 5)
+round_edge = 4; 
+// Extra clearance added to the rail's guide channel to let the rack slide freely
+slide_tol = 0.6; 
+// Adjusts the gear mesh depth by moving the rack closer to the gearwheel (increase if gearwheel is smaller)
+tight = 2.4; 
+// Baseline X-axis offset for the rack's internal geometry
+dist = 2.8; 
+// The total usable Z travel distance (up + down)
+z_travel_range = 12; // [10:0.5:50]
+// Include cutouts for Rubber Holder on the Z Rail
+include_rubber_holder = true;
 
 /* [Gears and Wheels] */
+// How much of the available travel space to fill with teeth
+teeth_ratio = 0.95; // [0.1:0.05:1.0]
+// Helical angle for the gear and rack teeth (0 = straight teeth)
 tooth_angle = 0;
-tooth_size = 1; // modul = Height of the tooth tip above the pitch line
-rackWidth = 8; // width of rack with teeth
-rackDepth = 6; // depth of rack with teeth (some mistake when this is not 6)
+// Module of the gear (height of the tooth tip above the pitch line)
+tooth_size = 1; 
+// Overall width of the rack
+rackWidth = 8; 
+// Overall depth/thickness of the rack (do not change from 6 due to hardcoded dependencies)
+rackDepth = 6; 
 
 /* [Pen Holder] */
+// Diameter of the pen/brush to be inserted
 pen_diam = 12;
+// Offset the pen holder up or down along the rack
+pen_z_offset = 8; // [-20:1:20]
 
 /* [Holes and Screws] */
-M3_screwhole = 2.8; // tight to screw into it
+// Diameter for holes where M3 screws self-tap directly into the plastic
+M3_screwhole = 2.8; 
+// Diameter for holes designed to receive heated M3 brass threaded inserts
 M3_insert = 4.1;
-M3_hole = 3.5; // loose to push screw through it
-M3_screwhead = 5.8; // lower the screwhead into the material
-M4_screwhole = 3.9; // tight to screw into it
-Z_luft = 0.1; // increase size of shaft hole for z-wheel
+// Diameter for loose clearance holes where M3 screws pass through freely
+M3_hole = 3.5; 
+// Diameter of the counterbore to hide M3 screw heads inside the material
+M3_screwhead = 5.8; 
+// Diameter for holes where M4 screws self-tap directly into the plastic
+M4_screwhole = 3.9; 
+// Additional tolerance (air) added to the stepper motor D-shaft hole to ensure it fits easily
+Z_luft = 0.1; 
 
 /* [Hidden] */
+// Depth of the hole for the threaded insert in the rack
+insert_depth = 10;
+// Starting Y position of the insert hole (controls how far out the front it starts)
+insert_start_y = 1;
+
 // Uncomment if you have the StepMotor STL
 // color("DarkSlateGray") translate([-25,8,9.6]) rotate([90,0,90]) import("StepMotorModelScaled.stl");
 
 if (part_to_render == "assembly") {
+  ext_z = z_travel_range - 16.5 - pen_z_offset;
   Z_rail();
   Z_gearwheel();
-  Z_rackpen(M3_insert);
-  translate([25.5, -6.8 + tight, 18.5]) penHolder();
-  translate([25.5, -6.8 + tight, 18.5]) brushInsert(6.5);
-  translate([25.5, -10.8 + tight - 9.5, 18.5]) rotate([90, 0, 0]) handWheel();
+  translate([0, 0, ext_z + assembly_z_travel]) Z_rackpen(M3_insert);
+  translate([25.5, -6.8 + tight, 18.5 + ext_z + pen_z_offset + assembly_z_travel]) penHolder();
+  translate([25.5, -6.8 + tight, 18.5 + ext_z + pen_z_offset + assembly_z_travel]) brushInsert(6.5);
+  translate([25.5, -10.8 + tight - 9.5, 18.5 + ext_z + pen_z_offset + assembly_z_travel]) rotate([90, 0, 0]) handWheel();
 } else if (part_to_render == "core") {
+  ext_z = z_travel_range - 16.5 - pen_z_offset;
   Z_rail();
   Z_gearwheel();
-  Z_rackpen(M3_insert);
+  translate([0, 0, ext_z + assembly_z_travel]) Z_rackpen(M3_insert);
 } else if (part_to_render == "rail") {
   Z_rail();
 } else if (part_to_render == "gearwheel") {
@@ -70,10 +101,11 @@ if (part_to_render == "assembly") {
 module Z_rackpen(lochli) {
   translate([0, 0, 10]) difference() {
       color("fuchsia") translate([0, tight - 0.2, 15]) Z_rack();
-      #translate([dist + 5.5, 2, 9.2]) rotate([90, 0, 0]) cylinder(21, d=lochli, center=false); // bigger hole for insert, uncomment if needed
-      translate([dist + 6, -6.68 + tight, 8.8]) cube([10, 3.1, 12.4], center=true);
-      translate([dist + 6, -6.68 + tight, 50]) cube([1.8, 18.1, 12], center=true);
-      translate([dist + 6.8, -6.68 + tight, 45]) cube([2.0, 18.1, 2], center=true);
+      // Hole for threaded insert (red transparent for debugging depth)
+      #translate([dist + 5.5, insert_start_y, 9.2 + pen_z_offset]) rotate([90, 0, 0]) cylinder(insert_depth, d=lochli, center=false);
+      translate([dist + 6, -6.68 + tight, 8.8 + pen_z_offset]) cube([10, 3.1, 12.4], center=true);
+      translate([dist + 6, -6.68 + tight, 50 + pen_z_offset]) cube([1.8, 18.1, 12], center=true);
+      translate([dist + 6.8, -6.68 + tight, 45 + pen_z_offset]) cube([2.0, 18.1, 2], center=true);
     }
 }
 
@@ -135,27 +167,28 @@ module handWheel() {
 }
 
 module Z_rail() {
-  difference() {
+  ext_z = z_travel_range - 16.5 - pen_z_offset;
+  color("SteelBlue") difference() {
     minkowski() {
       union() {
         difference() {
-          translate([1, -10, 20 + 4]) cube([14 - round_edge, 10 - round_edge, 46 + 8 - round_edge], center=true); // Vertikal
-          translate([2, -18, 2]) cube([20, 50, 32 + 8]);
+          translate([1, -10, 24 + ext_z / 2]) cube([14 - round_edge, 10 - round_edge, 54 - round_edge + ext_z], center=true); // Vertikal
+          translate([2, -18, 2]) cube([20, 50, 40 + ext_z]);
           translate([2, -9, -12 + 2]) cube([20, 50, 30]);
         }
         translate([-3, 8, 8]) cube([6 - round_edge, 46 - round_edge, 12 - round_edge], center=true); // Balken
         difference() {
-          translate([8, -4, 12 + 8]) cube([16 - round_edge, 22 - round_edge, 62 + 0 - round_edge], center=true); // Z-Rail
-          translate([10, 7.0, 36.5]) cube([28.0, 10.1, 30], center=true);
-          translate([0, -18, 2]) cube([20, 50, 40]);
+          translate([8, -4, 20 + ext_z / 2]) cube([16 - round_edge, 22 - round_edge, 62 - round_edge + ext_z], center=true); // Z-Rail
+          translate([10, 7.0, 36.5 + ext_z / 2]) cube([28.0, 10.1, 30 + ext_z], center=true);
+          translate([0, -18, 2]) cube([20, 50, 40 + ext_z]);
           translate([0, -3 + 2, -32 + 0]) cube([20, 50, 60]);
         }
       }
       $fn = $preview ? preview_fn : 30;
       sphere(d=round_edge);
     }
-    translate([rackWidth / 2 + dist + 1, -rackDepth - 0.5 + tight - 0.5 * slide_tol, 14]) cube([rackWidth + 2 + slide_tol, 3 + 0.5 * slide_tol, 70 + 8], center=true); // Führung
-    translate([rackWidth / 2 + dist, -2 + tight - 0.5 * slide_tol, 0]) cube([rackWidth + slide_tol, rackDepth + 0.5 * slide_tol, 70], center=true); // Führung
+    translate([rackWidth / 2 + dist + 1, -rackDepth - 0.5 + tight - 0.5 * slide_tol, 14 + ext_z / 2]) cube([rackWidth + 2 + slide_tol, 3 + 0.5 * slide_tol, 78 + ext_z], center=true); // Führung
+    translate([rackWidth / 2 + dist, -2 + tight - 0.5 * slide_tol, 0 + ext_z / 2]) cube([rackWidth + slide_tol, rackDepth + 0.5 * slide_tol, 70 + ext_z], center=true); // Führung
     translate([rackWidth / 2 + dist - 4, -4.55 + tight - 1 * slide_tol, 15.9]) rotate([0, 0, 0]) linear_extrude(78.2, center=true, scale=1) polygon(points=[[-slide_tol / 2, 0], [2, 2 + slide_tol / 2], [8, 2 + slide_tol / 2], [10 + slide_tol / 2, 0]]);
     translate([-10, 8, 0]) rotate([0, 90, 0]) cylinder(20, d=12, center=false); // MotorCenter
     translate([-10, 25.7, 8.2]) rotate([0, 90, 0]) cylinder(20, d=3.5, center=false); // MotorScrewHoles
@@ -163,17 +196,49 @@ module Z_rail() {
     translate([-10, -9.7, 8.2]) rotate([0, 90, 0]) cylinder(20, d=3.5, center=false); // MotorScrewHoles
     translate([-2, -9.7, 8.2]) rotate([0, 90, 0]) cylinder(8.1, d=5.8, center=false); // MotorScrewHead
     //Rubber Holder
-    translate([14.4, -6.68 + tight, 36.7]) cube([1.5, 28.1, 12], center=true);
-    translate([12, -6.68 + tight + 9.4, 46.5]) rotate([0, -28, 0]) cube([1.6, 8.1, 12], center=true);
-    //translate([14,-6.68+tight-13,46.5]) rotate([0,-28,0]) cube([2.0,8.1,12], center = true);
+    if (include_rubber_holder) {
+      translate([14.4, -6.68 + tight, 36.7]) cube([1.5, 28.1, 12], center=true);
+      translate([12, -6.68 + tight + 9.4, 46.5]) rotate([0, -28, 0]) cube([1.6, 8.1, 12], center=true);
+      //translate([14,-6.68+tight-13,46.5]) rotate([0,-28,0]) cube([2.0,8.1,12], center = true);
+    }
   }
 }
 
 module Z_rack() {
-  // Stange
-  translate([dist, 0, -19]) rotate([0, 90, 0]) zahnstange(modul=1, laenge=42, hoehe=rackDepth, breite=rackWidth, eingriffswinkel=25, schraegungswinkel=tooth_angle);
-  translate([rackWidth / 2 + dist + 1, -rackDepth - 0.5, -3.5]) cube([rackWidth + 2, 3, 64 + 7], center=true);
-  translate([rackWidth / 2 + dist - 4, -rackDepth + 1, -3.5]) rotate([0, 0, 0]) linear_extrude(71, center=true, scale=1) polygon(points=[[0, 0], [2, 2], [8, 2], [10, 0]]);
+  ext_z = z_travel_range - 16.5 - pen_z_offset;
+  L_rod = 71 + ext_z;
+  
+  // The teeth stop at the upper end of the pen holder.
+  // In Z_rack coordinates, the pen holder top is at Z = 5.0 + pen_z_offset.
+  // We use Z = 2.0 + pen_z_offset for the teeth top (which matches the original 42mm length perfectly).
+  // Teeth bottom is -40 - ext_z. Max length = (2.0 + pen_z_offset) - (-40 - ext_z) = 42 + ext_z + pen_z_offset.
+  L_teeth_max = 42 + ext_z + pen_z_offset;
+  L_teeth_raw = L_teeth_max * teeth_ratio;
+  
+  // Quantize teeth length so it's always a full number of teeth
+  modul_eff = 1 * (1 - spiel);
+  c_eff = modul_eff / 6;
+  mx = modul_eff / cos(tooth_angle);
+  pitch = pi * mx;
+  num_teeth = floor(L_teeth_raw / pitch); // floor ensures we never clip into the block
+  L_teeth = num_teeth * pitch;
+
+  // Calculate exactly how the zahnstange module anchors its geometry so we can align it flush with the rod bottom
+  a_eff = 2 * mx * tan(25) + c_eff * tan(25);
+  b_eff = pi * mx / 2 - 2 * mx * tan(25);
+  x_shift = rackWidth * tan(tooth_angle);
+  nz = ceil((L_teeth + abs(2 * x_shift)) / pitch);
+  min_x = -pitch * (nz - 1) / 2 - a_eff - b_eff / 2;
+  
+  rod_bottom = -39 - ext_z;
+  teeth_center_z = rod_bottom + L_teeth + min_x;
+
+  // Stange (Teeth)
+  translate([dist, 0, teeth_center_z]) rotate([0, 90, 0]) zahnstange(modul=1, laenge=L_teeth, hoehe=rackDepth, breite=rackWidth, eingriffswinkel=25, schraegungswinkel=tooth_angle);
+  // Base Bar
+  translate([rackWidth / 2 + dist + 1, -rackDepth - 0.5, -3.5 - ext_z / 2]) cube([rackWidth + 2, 3, L_rod], center=true);
+  // Side Wedge
+  translate([rackWidth / 2 + dist - 4, -rackDepth + 1, -3.5 - ext_z / 2]) rotate([0, 0, 0]) linear_extrude(L_rod, center=true, scale=1) polygon(points=[[0, 0], [2, 2], [8, 2], [10, 0]]);
 }
 
 module Z_gearwheel() {
