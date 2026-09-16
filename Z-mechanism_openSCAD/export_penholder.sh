@@ -43,14 +43,14 @@ echo ""
 echo "Exporting pen_holder (${DIAM}mm) and brush_insert (${BRUSH_HOLE}mm) using base preset: $PRESET..."
 
 # Ensure output directory exists
-mkdir -p "brushHolder"
+mkdir -p "Z-mechanism_STL/${PRESET}/brushHolder"
 
 PARTS=("pen_holder" "brush_insert")
 
 for PART in "${PARTS[@]}"; do
     if [ "$PART" = "brush_insert" ]; then
         echo "Rendering $PART (Diameter: ${BRUSH_HOLE}mm)..."
-        openscad -o "brushHolder/${PRESET}_${PART}_${BRUSH_HOLE}mm_Z-mechanism.stl" \
+        openscad -o "Z-mechanism_STL/${PRESET}/brushHolder/${PRESET}_${PART}_${BRUSH_HOLE}mm_Z-mechanism.stl" \
                  -D "export_part=\"$PART\"" \
                  -D "export_pen_diam=$DIAM" \
                  -D "export_brush_hole=$BRUSH_HOLE" \
@@ -59,7 +59,7 @@ for PART in "${PARTS[@]}"; do
                  openBrushograph_Z-mechanism.scad
     else
         echo "Rendering $PART (Diameter: ${DIAM}mm)..."
-        openscad -o "brushHolder/${PRESET}_${PART}_${DIAM}mm_Z-mechanism.stl" \
+        openscad -o "Z-mechanism_STL/${PRESET}/brushHolder/${PRESET}_${PART}_${DIAM}mm_Z-mechanism.stl" \
                  -D "export_part=\"$PART\"" \
                  -D "export_pen_diam=$DIAM" \
                  -p openBrushograph_Z-mechanism.json \
@@ -68,4 +68,4 @@ for PART in "${PARTS[@]}"; do
     fi
 done
 
-echo "Pen holder parts successfully exported to the brushHolder/ folder!"
+echo "Pen holder parts successfully exported to the Z-mechanism_STL/${PRESET}/brushHolder/ folder!"

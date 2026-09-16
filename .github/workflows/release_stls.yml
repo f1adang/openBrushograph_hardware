@@ -1,0 +1,37 @@
+name: Release STLs
+
+on:
+  push:
+    tags:
+      - 'V*' # This rule triggers the action whenever a tag starting with 'V' is pushed
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Prepare and Zip Standard STLs
+        run: |
+          mkdir -p release_standard/XY_mechanism release_standard/Z_mechanism
+          cp -r X-Y_freeCAD/STLs/brushograf_V6_Mini_M3_2.7mm_STLs/* release_standard/XY_mechanism/ || true
+          cp -r Z-mechanism_STL/standard/* release_standard/Z_mechanism/ || true
+          cd release_standard
+          zip -r ../Standard_STLs.zip *
+
+      - name: Prepare and Zip Mikro STLs
+        run: |
+          mkdir -p release_mikro/XY_mechanism release_mikro/Z_mechanism
+          cp -r X-Y_freeCAD/STLs/brushograf_V6_Micro_M3_2.7mm_STLs/* release_mikro/XY_mechanism/ || true
+          cp -r Z-mechanism_STL/mikro/* release_mikro/Z_mechanism/ || true
+          cd release_mikro
+          zip -r ../Mikro_STLs.zip *
+
+      - name: Create GitHub Release and Upload Zips
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Standard_STLs.zip
+            Mikro_STLs.zip
+          generate_release_notes: true
