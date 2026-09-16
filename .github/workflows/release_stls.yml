@@ -16,17 +16,19 @@ jobs:
 
       - name: Prepare and Zip Standard STLs
         run: |
-          mkdir -p release_standard/XY_mechanism release_standard/Z_mechanism
-          cp -r X-Y_freeCAD/STLs/brushograf_V6_Mini_M3_2.7mm_STLs/* release_standard/XY_mechanism/ || true
-          cp -r Z-mechanism_STL/standard/* release_standard/Z_mechanism/ || true
+          FOLDER_NAME="openBrushograph_${GITHUB_REF_NAME}"
+          mkdir -p "release_standard/${FOLDER_NAME}/XY_mechanism" "release_standard/${FOLDER_NAME}/Z_mechanism"
+          cp -r X-Y_freeCAD/STLs/brushograf_V6_Mini_M3_2.7mm_STLs/* "release_standard/${FOLDER_NAME}/XY_mechanism/" || true
+          cp -r Z-mechanism_openSCAD/Z-mechanism_STL/standard/* "release_standard/${FOLDER_NAME}/Z_mechanism/" || true
           cd release_standard
           zip -r ../Standard_STLs.zip *
 
       - name: Prepare and Zip Mikro STLs
         run: |
-          mkdir -p release_mikro/XY_mechanism release_mikro/Z_mechanism
-          cp -r X-Y_freeCAD/STLs/brushograf_V6_Micro_M3_2.7mm_STLs/* release_mikro/XY_mechanism/ || true
-          cp -r Z-mechanism_STL/mikro/* release_mikro/Z_mechanism/ || true
+          FOLDER_NAME="openBrushograph_${GITHUB_REF_NAME}"
+          mkdir -p "release_mikro/${FOLDER_NAME}/XY_mechanism" "release_mikro/${FOLDER_NAME}/Z_mechanism"
+          cp -r X-Y_freeCAD/STLs/brushograf_V6_Micro_M3_2.7mm_STLs/* "release_mikro/${FOLDER_NAME}/XY_mechanism/" || true
+          cp -r Z-mechanism_openSCAD/Z-mechanism_STL/mikro/* "release_mikro/${FOLDER_NAME}/Z_mechanism/" || true
           cd release_mikro
           zip -r ../Mikro_STLs.zip *
 
