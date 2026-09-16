@@ -245,6 +245,8 @@ def export_variant(doc, params_sheet, switcher_val, variant_name, base_file, m3_
         for obj in doc.Objects:
             if obj.isDerivedFrom("App::Part"):
                 label = obj.Label.replace("/", "_").replace("\\", "_").replace(" ", "_")
+                # Swap the generic word 'part' for the actual variant name
+                label = label.replace("part", variant_name)
                 out_path = os.path.join(out_dir, f"{label}_M3_{m3_hole_str}mm.stl")
                 Mesh.export([obj], out_path)
                 exported += 1
@@ -298,6 +300,11 @@ def main():
                 clean_name = val.strip()
                 if clean_name.startswith("(") and ")" in clean_name:
                     clean_name = clean_name.split(")", 1)[1].strip()
+                    
+                # Standardize the spelling to Mikro
+                if clean_name.lower() == "micro":
+                    clean_name = "Mikro"
+                    
                 variants.append((idx + 1, clean_name))
         except:
             pass
@@ -308,7 +315,7 @@ def main():
             (1, "Mini"),
             (2, "Mini_ins"),
             (3, "Baby_ins"),
-            (4, "Micro")
+            (4, "Mikro")
         ]
     
     while True:
