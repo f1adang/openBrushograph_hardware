@@ -20,7 +20,7 @@ jobs:
           mkdir -p "release_standard/${FOLDER_NAME}/XY_mechanism" "release_standard/${FOLDER_NAME}/Z_mechanism" "release_standard/${FOLDER_NAME}/containerHolders"
           cp -r X-Y_freeCAD/STLs/*Mini*/* "release_standard/${FOLDER_NAME}/XY_mechanism/" || true
           cp -r Z-mechanism_openSCAD/Z-mechanism_STL/standard/* "release_standard/${FOLDER_NAME}/Z_mechanism/" || true
-          cp Extras/new_colour_holder/Gandi_*.stl "release_standard/${FOLDER_NAME}/containerHolders/" || true
+          cp Extras/CMYK_ColourContainers/standard_*.stl "release_standard/${FOLDER_NAME}/containerHolders/" || true
           cd release_standard
           zip -r ../Standard_STLs.zip *
 
@@ -30,7 +30,7 @@ jobs:
           mkdir -p "release_mikro/${FOLDER_NAME}/XY_mechanism" "release_mikro/${FOLDER_NAME}/Z_mechanism" "release_mikro/${FOLDER_NAME}/containerHolders"
           cp -r X-Y_freeCAD/STLs/*Mikro*/* "release_mikro/${FOLDER_NAME}/XY_mechanism/" || true
           cp -r Z-mechanism_openSCAD/Z-mechanism_STL/mikro/* "release_mikro/${FOLDER_NAME}/Z_mechanism/" || true
-          cp Extras/new_colour_holder/mikro_*.stl "release_mikro/${FOLDER_NAME}/containerHolders/" || true
+          cp Extras/CMYK_ColourContainers/mikro_*.stl "release_mikro/${FOLDER_NAME}/containerHolders/" || true
           cd release_mikro
           zip -r ../Mikro_STLs.zip *
 
