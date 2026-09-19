@@ -21,12 +21,22 @@ crucible_wall_t = 1.5; // [0.1:0.1:5.0]
 crucible_outer_r = 1.5; // [0:0.1:10.0]
 // Rounding radius for the inside cavity (Makes it bowl-like and easier to wipe with a brush)
 crucible_inner_r = 4.0; // [0:0.1:10.0]
-// Enable staircase steps inside the crucible for wiping the brush
-wipe_steps_enabled = false;
-// Number of wipe steps
-wipe_steps_count = 4; // [1:1:10]
-// How much length of the crucible is taken up by the steps (0.4 = 40%)
-wipe_steps_length_pct = 0.4; // [0.1:0.05:0.8]
+// Wipe style for the brush inside the crucible
+wipe_style = "none"; // ["none": No Wipe, "steps": Staircase Steps, "ripples": Tilted Plane with Ripples]
+// Number of wipe steps or ripples
+wipe_count = 4; // [1:1:10]
+// How much length of the crucible is taken up by the wiping area (0.4 = 40%)
+wipe_length_pct = 0.4; // [0.1:0.05:0.8]
+// For ripples: the height of the ripple bumps
+wipe_ripple_h = 1.0; // [0.1:0.1:5.0]
+// Amplitude of the wave snaking along X (Set to 0 for straight ripples)
+wipe_snake_amp = 0.5; // [0:0.1:5.0]
+// Wavelength of the snaking wave along X
+wipe_snake_len = 15;  // [5:1:50]
+// Height reached on the right side of the crucible (0.0 to 1.0, where 1.0 is full height)
+wipe_right_height_pct = 0.25; // [0.0:0.05:1.0]
+// Vertical offset to shift the entire ripple plane down (to prevent flat clipping at the top rim)
+wipe_ripple_z_offset = 1.0; // [0:0.1:10.0]
 
 /* [Holder Dimensions] */
 // Length of the dividing fingers behind the front flange (controls the holder depth)
@@ -310,23 +320,100 @@ module crucible(w = pan_w) {
                 simple_rounded_box(w - 2 * crucible_wall_t, pan_l - 2 * crucible_wall_t, crucible_h + 1, crucible_inner_r);
         }
         
-        // Add wiping steps inside the cavity
-        if (wipe_steps_enabled) {
+        // Add wiping features inside the cavity
+        if (wipe_style != "none") {
             intersection() {
-                // The intersection bounds the steps perfectly to the rounded inner walls
+                // The intersection bounds the steps perfectly to the rounded inner walls and top edge
                 translate([crucible_wall_t, crucible_wall_t, crucible_wall_t])
-                    simple_rounded_box(w - 2 * crucible_wall_t, pan_l - 2 * crucible_wall_t, crucible_h + 1, crucible_inner_r);
+                    simple_rounded_box(w - 2 * crucible_wall_t, pan_l - 2 * crucible_wall_t, crucible_h - crucible_wall_t, crucible_inner_r);
                 
-                // The steps geometry (rising towards the back Y wall)
-                step_area_l = pan_l * wipe_steps_length_pct;
-                step_l = step_area_l / wipe_steps_count;
+                // The wipe geometry (rising towards the back Y wall)
+                step_area_l = pan_l * wipe_length_pct;
                 max_step_z = crucible_h - crucible_wall_t;
-                step_h = max_step_z / wipe_steps_count;
                 
-                for (i = [0 : wipe_steps_count - 1]) {
-                    // Extend X safely beyond w to ensure intersection cuts it precisely
-                    translate([-1, pan_l - step_area_l + i * step_l, crucible_wall_t])
-                        cube([w + 2, step_l + 0.1, (i + 1) * step_h]); // +0.1 prevents co-planar rendering glitches
+                if (wipe_style == "steps") {
+                    step_l = step_area_l / wipe_count;
+                    step_h = max_step_z / wipe_count;
+                    
+                    for (i = [0 : wipe_count - 1]) {
+                        // Extend X safely beyond w to ensure intersection cuts it precisely
+                        translate([-1, pan_l - step_area_l + i * step_l, crucible_wall_t])
+                            cube([w + 2, step_l + 0.1, (i + 1) * step_h]); // +0.1 prevents co-planar rendering glitches
+                    }
+                } else if (wipe_style == "ripples") {
+                    res_x = ceil(w * 3); // Dynamic X resolution (3 points per mm) for smooth waves
+                    res_y = 24;          // Higher Y resolution for smooth curves
+                    ny_pts = wipe_count * res_y;
+                    
+                    pts = [
+                        for (is_bot = [false, true])
+                            for (ix = [0 : res_x])
+                                for (iy = [0 : ny_pts])
+                                    let (
+                                        x = -1 + (w + 2) * ix / res_x,
+                                        pct_y = iy / ny_pts,
+                                        
+                                        x_pct = (x - crucible_wall_t) / (w - 2 * crucible_wall_t),
+                                        max_z_for_ripples = max_step_z - wipe_ripple_h,
+                                        local_max_step_z = max_z_for_ripples * (1.0 - (1.0 - wipe_right_height_pct) * x_pct),
+                                        
+                                        L = sqrt(pow(local_max_step_z, 2) + pow(step_area_l, 2)),
+                                        ny_norm = -local_max_step_z / L,
+                                        nz_norm = step_area_l / L,
+                                        
+                                        wipe_y_end = pan_l - crucible_wall_t - crucible_inner_r,
+                                        wipe_y_start = wipe_y_end - step_area_l,
+                                        total_y_len = step_area_l + crucible_inner_r + 2, // Oversize to avoid coplanar intersection bugs
+                                        
+                                        y_base = wipe_y_start + pct_y * total_y_len,
+                                        slope_pct = (pct_y * total_y_len) / step_area_l,
+                                        z_base = crucible_wall_t + slope_pct * local_max_step_z - wipe_ripple_z_offset,
+                                        
+                                        phase_shift = wipe_snake_amp == 0 ? 0 : 360 * wipe_snake_amp * sin(360 * x / wipe_snake_len),
+                                        z_rip = is_bot ? 0 : wipe_ripple_h * (1 - cos(360 * wipe_count * slope_pct + phase_shift)) / 2,
+                                        y = is_bot ? y_base : y_base + z_rip * ny_norm,
+                                        z = is_bot ? 0 : z_base + z_rip * nz_norm
+                                    )
+                                    [x, y, z]
+                    ];
+                    
+                    offset = (res_x + 1) * (ny_pts + 1);
+                    
+                    top_faces = [
+                        for (ix = [0 : res_x - 1])
+                            for (iy = [0 : ny_pts - 1])
+                                let( base = ix * (ny_pts + 1) + iy )
+                                each [[base + 1, base + ny_pts + 2, base + ny_pts + 1], [base + 1, base + ny_pts + 1, base]]
+                    ];
+                    bot_faces = [
+                        for (ix = [0 : res_x - 1])
+                            for (iy = [0 : ny_pts - 1])
+                                let( base = ix * (ny_pts + 1) + iy )
+                                each [[offset + base, offset + base + ny_pts + 1, offset + base + ny_pts + 2], [offset + base, offset + base + ny_pts + 2, offset + base + 1]]
+                    ];
+                    front_faces = [
+                        for (ix = [0 : res_x - 1])
+                            let( base = ix * (ny_pts + 1) )
+                            each [[base, base + ny_pts + 1, offset + base + ny_pts + 1], [base, offset + base + ny_pts + 1, offset + base]]
+                    ];
+                    back_faces = [
+                        for (ix = [0 : res_x - 1])
+                            let( base = ix * (ny_pts + 1) + ny_pts )
+                            each [[base + ny_pts + 1, base, offset + base], [base + ny_pts + 1, offset + base, offset + base + ny_pts + 1]]
+                    ];
+                    left_faces = [
+                        for (iy = [0 : ny_pts - 1])
+                            let( base = iy )
+                            each [[base + 1, base, offset + base], [base + 1, offset + base, offset + base + 1]]
+                    ];
+                    right_faces = [
+                        for (iy = [0 : ny_pts - 1])
+                            let( base = res_x * (ny_pts + 1) + iy )
+                            each [[base, base + 1, offset + base + 1], [base, offset + base + 1, offset + base]]
+                    ];
+                    
+                    all_faces = concat(top_faces, bot_faces, front_faces, back_faces, left_faces, right_faces);
+                    polyhedron(points = pts, faces = all_faces);
                 }
             }
         }
