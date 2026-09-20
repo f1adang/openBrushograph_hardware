@@ -35,12 +35,13 @@
             "wipe_steps_enabled": "true",
             "wipe_steps_length_pct": "0.4"
         },
-        "CMYK_standard_narrow": {
+        "CMYK_standard": {
             "bottom_t": "1.5",
             "clearance": "0.2",
             "crucible_h": "10",
             "crucible_inner_r": "4",
-            "crucible_outer_r": "2",
+            "crucible_outer_bottom_r": "0.5",
+            "crucible_outer_r": "1.5",
             "crucible_wall_t": "1.2",
             "export_brush_hole": "0",
             "export_part": "",
@@ -70,15 +71,17 @@
             "spring_finger_l": "30",
             "spring_fingers": "true",
             "spring_slit_w": "1.4",
+            "target_depth": "-0.3",
+            "target_mark": "true",
             "wall_t": "1.2",
             "wipe_count": "5",
-            "wipe_length_pct": "0.4",
+            "wipe_length_pct": "0.3",
             "wipe_right_height_pct": "1",
             "wipe_ripple_h": "0.7",
             "wipe_ripple_z_offset": "1",
-            "wipe_snake_amp": "0.2",
+            "wipe_snake_amp": "0",
             "wipe_snake_len": "6",
-            "wipe_style": "none"
+            "wipe_style": "ripples"
         }
     },
     "fileFormatVersion": "1",
