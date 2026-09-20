@@ -17,8 +17,10 @@ pan_l = 30;           // [5:0.1:50]
 crucible_h = 10;       // [1:0.1:50]
 // Wall thickness of the crucible. Inner volume shrinks based on this.
 crucible_wall_t = 1.5; // [0.1:0.1:5.0]
-// Rounding radius for the outside of the crucible (Set to 0 for a sharp rectangular block)
+// Rounding radius for the outside vertical corners
 crucible_outer_r = 1.5; // [0:0.1:10.0]
+// Rounding radius for the outside bottom edges (Set lower for a flatter bottom)
+crucible_outer_bottom_r = 0.5; // [0:0.1:10.0]
 // Rounding radius for the inside cavity (Makes it bowl-like and easier to wipe with a brush)
 crucible_inner_r = 4.0; // [0:0.1:10.0]
 // Wipe style for the brush inside the crucible
@@ -37,6 +39,12 @@ wipe_snake_len = 15;  // [5:1:50]
 wipe_right_height_pct = 0.25; // [0.0:0.05:1.0]
 // Vertical offset to shift the entire ripple plane down (to prevent flat clipping at the top rim)
 wipe_ripple_z_offset = 1.0; // [0:0.1:10.0]
+
+/* [Target Mark (First Pan Only)] */
+// Enable a target mark in the center of the first pan
+target_mark = true;
+// Depth of the target mark (negative = embossed cut into the floor, positive = extruded bump)
+target_depth = -0.4; // [-2.0:0.1:2.0]
 
 /* [Holder Dimensions] */
 // Length of the dividing fingers behind the front flange (controls the holder depth)
@@ -103,6 +111,18 @@ front_wall = wall_t;
 back_wall = is_open_end ? 0 : wall_t;
 tot_l = flange_l + front_wall + finger_l + back_wall;
 tot_h = has_bottom ? holder_h + bottom_t : holder_h;
+
+module target_mark_shape(d) {
+    // Crosshairs (2 perpendicular lines)
+    translate([-5, -0.5, 0]) cube([10, 1.0, d]);
+    translate([-0.5, -5, 0]) cube([1.0, 10, d]);
+    
+    // Outer circle
+    difference() {
+        cylinder(h = d, r = 4.5, $fn=32);
+        translate([0, 0, -0.1]) cylinder(h = d + 0.2, r = 3.5, $fn=32);
+    }
+}
 
 module top_rounded_box(w, l, h, r) {
     if (r <= 0.001) {
@@ -280,27 +300,39 @@ module petri_holder() {
     }
 }
 
-module simple_rounded_box(w, l, h, r) {
+module corner_torus(r, br) {
+    if (br <= 0.001) {
+        cylinder(r=r, h=0.01, $fn=32);
+    } else if (br >= r - 0.001) {
+        sphere(r=r, $fn=32);
+    } else {
+        rotate_extrude($fn=32) translate([r - br, 0, 0]) circle(r=br, $fn=16);
+    }
+}
+
+module simple_rounded_box(w, l, h, r, bottom_r = -1) {
+    br = (bottom_r < 0) ? r : bottom_r;
+    
     if (r <= 0.001) {
         cube([w, l, h]);
     } else {
-        // Safe radius to prevent geometry collapsing in on itself
+        // Safe radii to prevent geometry collapsing
         safe_r = min(r, min(w/2 - 0.001, l/2 - 0.001));
+        safe_br = min(br, safe_r);
         
         intersection() {
             hull() {
-                // Bottom corners (spheres)
-                translate([safe_r, safe_r, safe_r]) sphere(r=safe_r);
-                translate([w-safe_r, safe_r, safe_r]) sphere(r=safe_r);
-                translate([safe_r, l-safe_r, safe_r]) sphere(r=safe_r);
-                translate([w-safe_r, l-safe_r, safe_r]) sphere(r=safe_r);
+                // Bottom corners (torus or sphere for bottom edge fillet)
+                translate([safe_r, safe_r, safe_br]) corner_torus(safe_r, safe_br);
+                translate([w-safe_r, safe_r, safe_br]) corner_torus(safe_r, safe_br);
+                translate([safe_r, l-safe_r, safe_br]) corner_torus(safe_r, safe_br);
+                translate([w-safe_r, l-safe_r, safe_br]) corner_torus(safe_r, safe_br);
                 
-                // Top corners (thick cylinders, preventing CGAL crashes)
-                // Positioned at Z=h so the vertical walls are perfectly straight.
-                translate([safe_r, safe_r, h]) cylinder(r=safe_r, h=safe_r);
-                translate([w-safe_r, safe_r, h]) cylinder(r=safe_r, h=safe_r);
-                translate([safe_r, l-safe_r, h]) cylinder(r=safe_r, h=safe_r);
-                translate([w-safe_r, l-safe_r, h]) cylinder(r=safe_r, h=safe_r);
+                // Top corners (thick cylinders)
+                translate([safe_r, safe_r, h]) cylinder(r=safe_r, h=safe_r, $fn=32);
+                translate([w-safe_r, safe_r, h]) cylinder(r=safe_r, h=safe_r, $fn=32);
+                translate([safe_r, l-safe_r, h]) cylinder(r=safe_r, h=safe_r, $fn=32);
+                translate([w-safe_r, l-safe_r, h]) cylinder(r=safe_r, h=safe_r, $fn=32);
             }
             // Cut off the excess top cylinders to leave a perfectly flat top exactly at Z=h
             cube([w, l, h]);
@@ -308,16 +340,22 @@ module simple_rounded_box(w, l, h, r) {
     }
 }
 
-module crucible(w = pan_w) {
+module crucible(w = pan_w, is_first = false) {
     $fn = 32;
     union() {
         difference() {
             // Outer box
-            simple_rounded_box(w, pan_l, crucible_h, crucible_outer_r);
+            simple_rounded_box(w, pan_l, crucible_h, crucible_outer_r, crucible_outer_bottom_r);
             
             // Inner cavity
             translate([crucible_wall_t, crucible_wall_t, crucible_wall_t])
                 simple_rounded_box(w - 2 * crucible_wall_t, pan_l - 2 * crucible_wall_t, crucible_h + 1, crucible_inner_r);
+                
+            // Embossed target mark (cut into the floor)
+            if (is_first && target_mark && target_depth < 0) {
+                translate([w / 2, pan_l / 2, crucible_wall_t + target_depth])
+                    target_mark_shape(abs(target_depth) + 0.1); // +0.1 to cleanly pierce the top surface
+            }
         }
         
         // Add wiping features inside the cavity
@@ -417,19 +455,26 @@ module crucible(w = pan_w) {
                 }
             }
         }
+        
+        // Target mark (extruded bump)
+        if (is_first && target_mark && target_depth > 0) {
+            translate([w / 2, pan_l / 2, crucible_wall_t]) {
+                target_mark_shape(target_depth);
+            }
+        }
     }
 }
 
 // --- Render ---
 if (part == "holder" || part == "assembled") {
-    translate([-20,0,0]) petri_holder();
+    translate([-25,0,0]) petri_holder();
 }
 
 if (part == "single_crucible") {
     // Generate both sizes of crucibles for easy printing
-    crucible(first_pan_w);
+    crucible(first_pan_w, is_first=true);
     if (first_pan_w != pan_w) {
-        translate([first_pan_w + 10, 0, 0]) crucible(pan_w);
+        translate([first_pan_w + 10, 0, 0]) crucible(pan_w, is_first=false);
     }
 }
 
@@ -441,6 +486,6 @@ if (part == "assembled") {
         z_pos = has_bottom ? bottom_t : 0;
         
         translate([cx, cy, z_pos])
-            translate([-20,0,0]) crucible(pw);
+            translate([-25,0,0]) crucible(pw, is_first=(i == 0));
     }
 }

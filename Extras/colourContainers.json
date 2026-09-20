@@ -35,7 +35,7 @@
             "wipe_steps_enabled": "true",
             "wipe_steps_length_pct": "0.4"
         },
-        "CMYK_Standard": {
+        "CMYK_standard_narrow": {
             "bottom_t": "1.5",
             "clearance": "0.2",
             "crucible_h": "10",
@@ -46,7 +46,7 @@
             "export_part": "",
             "export_pen_diam": "0",
             "finger_l": "35",
-            "first_pan_w": "40",
+            "first_pan_w": "38",
             "flange_l": "10",
             "gap": "4",
             "has_bottom": "false",
@@ -62,7 +62,7 @@
             "mount_hole_y_offset": "5",
             "num_pans": "5",
             "pan_l": "35",
-            "pan_w": "30",
+            "pan_w": "28",
             "part": "single_crucible",
             "side_flange": "8",
             "spring_bulb_l": "20",
@@ -78,7 +78,7 @@
             "wipe_ripple_z_offset": "1",
             "wipe_snake_amp": "0.2",
             "wipe_snake_len": "6",
-            "wipe_style": "ripples"
+            "wipe_style": "none"
         }
     },
     "fileFormatVersion": "1",

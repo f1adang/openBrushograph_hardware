@@ -36,11 +36,15 @@
             "M4_screwhole": "3.9",
             "Z_luft": "0.1",
             "assembly_z_travel": "-0.5",
+            "brush_hole_diam": "6.5",
             "dist": "2.8",
+            "export_brush_hole": "0",
+            "export_part": "",
+            "export_pen_diam": "0",
             "include_rubber_holder": "false",
             "insert_depth": "10",
             "insert_start_y": "1",
-            "part_to_render": "assembly",
+            "part_to_render": "rail",
             "pen_diam": "12",
             "pen_z_offset": "8",
             "preview_fn": "12",
@@ -52,7 +56,7 @@
             "tight": "2.4",
             "tooth_angle": "0",
             "tooth_size": "1",
-            "z_travel_range": "12"
+            "z_travel_range": "15"
         }
     },
     "fileFormatVersion": "1"
