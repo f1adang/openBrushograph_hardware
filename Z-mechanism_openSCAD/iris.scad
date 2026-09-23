@@ -27,17 +27,24 @@ axis_z     = 18.5;  // [5:0.1:40]
 // tab open against the band, drop the brush in, let go. No screw, no tool.
 // The iris amplifies barrel load 13x (open) to 26x (closed) back into the ring,
 // so ~7-15 N of band gives ~10 N per blade - about 12 N of axial hold.
-lock_ang   = 0;     // [0:5:355]   where the base's band hook sits (front)
+// hook angles are chosen to land between the pivot posts and between the
+// ring's drive slots - posts sit at iris_clock + 0/120/240
+lock_ang   = 32;    // [0:1:355]   where the base's band hook sits
 // the iris is clocked so the blade sweep leaves a gap at the back, letting the
 // mounting face be flat and sit as close to the machine as possible
 iris_clock = 92;    // [0:1:120]
 // screw hole in the mounting tongue - clearance, so the screw pulls it tight
 mount_hole = 3.4;   // [2.8:0.1:4.5]
-band_ang   = 75;    // [30:5:150]  ring hook, measured round from that post
+band_ang   = 135;   // [30:5:210]  ring hook, measured round from that hook
+// finger tab: clear of both hooks and of the ring's drive slots
+tab_ang    = 290;   // [0:5:355]
 band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
-hook_ro    = 4.8;   // [3:0.1:8]   hook outer radius
-hook_wall  = 2.0;   // [1.2:0.1:3] hook thickness
-hook_mouth = 95;    // [50:5:140]  how far the hook is open, deg
+// A hook is a hole for the band with a slot running out to the edge: slip the
+// band through the slot and it sits in the hole. Cut into the plate itself, so
+// it is exactly as thick as that plate and stands no taller.
+hook_id    = 5.2;   // [3:0.1:9]   hole the band sits in
+hook_slot  = 2.4;   // [1.5:0.1:4] slot the band slips through
+hook_wall  = 2.2;   // [1.2:0.1:4] material round the hole
 // buttress that roots the mounting tongue into the base
 gus_w      = 5.4;   // [4:0.2:14]  width across
 gus_d      = 2.3;   // [1:0.1:4]   depth behind the flat face
@@ -71,7 +78,12 @@ pin_rmax = max(norm(pinpos(0)), norm(pinpos(th_close)));
 R_base   = Rp + post_d/2 + wall + 0.6;
 R_ring   = pin_rmax + pin_d/2 + wall;
 blade_R  = Rp + (post_d + 2*wall + 1.2)/2;      // blades' swept radius
-R_ear    = blade_R + hook_ro + 0.8;             // band hook, clear of that
+// The ring covers the disc out to R_ring, so the base's hook has to sit past
+// that, on a small lobe. The lobe is only base_t thick - it lies in the base
+// plate's plane and stands no taller than it.
+R_hook_base = R_base + 0.4;
+R_hook_ring = R_ring + 0.7;                     // ...on a small tab past the ring's rim
+slot_ang    = [for(i=[0:2]) (120*i + psi_of(0) + iris_clock) % 360];
 flat_r   = 16.3;                                // flat mounting face, from the axis
 blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
 ring_z   = blade_z[2] + blade_t + 0.7;   // clears the tallest pivot stud
@@ -109,15 +121,12 @@ module irisBase(){
   difference(){
     union(){
       cylinder(r = R_base, h = base_t);
-      // No guide rim: the three drive pins sitting in three radial slots
-      // already centre the ring, and a rim would foul the blade hubs.
-      // Local ear instead, carrying the lock screw.
-      rotate([0,0,lock_ang]){
-        // web at base level only - under the blades
-        hull(){ translate([R_base - 4, 0, 0]) cylinder(r = 4, h = base_t);
-                translate([R_ear, 0, 0])      cylinder(r = 3.5, h = base_t); }
-        // band hook, standing clear of the blades' swept radius
-        translate([R_ear, 0, 0]) bandHook(-44, base_t);
+      // No guide rim: the three drive pins in three radial slots already centre
+      // the ring. The band hook is a hole cut in a flat lobe on the rim, in the
+      // base plate's own plane - nothing stands proud of it.
+      rotate([0,0,lock_ang]) hull(){
+        translate([R_base - 4, 0, 0])  cylinder(r = 4, h = base_t);
+        translate([R_hook_base, 0, 0]) cylinder(r = hook_id/2 + hook_wall, h = base_t);
       }
       // three pivot posts, each shouldered to its blade's height
       for (i = [0:2]) rotate([0,0,120*i + iris_clock]) translate([Rp, 0, 0]){
@@ -127,6 +136,9 @@ module irisBase(){
       }
     }
     translate([0,0,-1]) cylinder(r = r_open + 0.6, h = base_t + 2);   // the bore
+    // band hook, cut into the base plate
+    rotate([0,0,lock_ang]) translate([R_hook_base, 0, -1])
+      linear_extrude(base_t + 2) hookCut(hook_id/2 + hook_wall + 2);
     // flat mounting face at the back - it lands in the gap the clocking leaves
     translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
   }
@@ -136,23 +148,14 @@ module irisBase(){
  }
 }
 
-// ---- plain open hook: stretch the band and slip it straight on -----------
-// The mouth faces away from the pull, so tension pulls the band into the crook
-// rather than out of it, and a barb on the tip stops it walking off. Drawn in
-// plan and extruded, so it prints with no overhang at all.
-module bandHook(face = 0, h = 3){
-  linear_extrude(h)
-    union(){
-      difference(){
-        circle(r = hook_ro);
-        circle(r = hook_ro - hook_wall);
-        rotate(face - hook_mouth/2)
-          polygon([[0,0], [3*hook_ro, 0],
-                   [3*hook_ro*cos(hook_mouth), 3*hook_ro*sin(hook_mouth)]]);
-      }
-      rotate(face + hook_mouth/2) translate([hook_ro - hook_wall/2, 0])
-        circle(d = hook_wall*1.4);       // barb on the tip
-    }
+// ---- band hook: a hole with a slot out to the edge ----------------------
+// Subtracted from a plate, so the hook lies in that plate's own plane and adds
+// no height whatsoever. The slot runs radially outwards, well away from the
+// direction the band pulls, so tension seats the band into the hole instead of
+// dragging it back out through the slot.
+module hookCut(reach = 12){
+  circle(d = hook_id);
+  translate([0, -hook_slot/2]) square([reach, hook_slot]);
 }
 
 // ---- brace that roots the tongue into the base -------------------------
@@ -173,7 +176,7 @@ module mountBrace(){
       }
       hull(){
         translate([-flat_r + 1.15, 0,  2.2]) scale([1, 2.3, 1]) sphere(r = 1.15);
-        translate([-flat_r + 1.10, 0,  8.0]) scale([1, 1.5, 1]) sphere(r = 1.00);
+        translate([-flat_r + 1.10, 0,  7.1]) scale([1, 1.5, 1]) sphere(r = 1.00);  // stays under the ring
       }
       // roots, fanning out under the disc
       for (s = [-1, 1]){
@@ -209,18 +212,18 @@ module irisRing(){
     union(){
       cylinder(r = R_ring, h = ring_t);
       // finger tab, and a tab over the ear carrying the lock slot
-      rotate([0,0,60]) translate([R_ring - 2, -4, 0]) cube([10, 8, ring_t]);
-      // band hook: the band runs from here to the post on the base
-      rotate([0,0,lock_ang + band_ang]){
-        hull(){
-          translate([R_ring - 2, 0, 0])   cylinder(r = 3.0, h = ring_t);
-          translate([band_hook_r, 0, 0])  cylinder(r = hook_ro, h = ring_t);
-        }
-        translate([band_hook_r, 0, 0]) bandHook(61, ring_t);
+      rotate([0,0,tab_ang]) translate([R_ring - 2, -4, 0]) cube([10, 8, ring_t]);
+      // tab carrying the ring's band hook
+      rotate([0,0,lock_ang + band_ang]) hull(){
+        translate([R_ring - 3, 0, 0])    cylinder(r = 3.2, h = ring_t);
+        translate([R_hook_ring, 0, 0])   cylinder(r = hook_id/2 + hook_wall, h = ring_t);
       }
     }
     translate([0,0,-1]) cylinder(r = max(r_open + 1.2, pin_rmin - pin_d/2 - wall),
                                  h = ring_t + 2);
+    // band hook, cut into that tab
+    rotate([0,0,lock_ang + band_ang]) translate([R_hook_ring, 0, -1])
+      linear_extrude(ring_t + 2) hookCut(hook_id/2 + hook_wall + 2);
     // three radial slots for the blades' drive pins
     for (i = [0:2]) rotate([0,0,120*i + psi_of(0) + iris_clock])
       translate([0,0,-1]) linear_extrude(ring_t + 2)
