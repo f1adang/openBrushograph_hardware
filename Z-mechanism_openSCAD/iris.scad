@@ -35,10 +35,12 @@ iris_clock = 92;    // [0:1:120]
 mount_hole = 3.4;   // [2.8:0.1:4.5]
 band_ang   = 75;    // [30:5:150]  ring hook, measured round from that post
 band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
-hook_ro    = 4.2;   // [3:0.1:7]   hook outer radius
-hook_wall  = 1.7;   // [1.2:0.1:3] hook wall
-hook_h     = 5;     // [3:0.5:9]   hook height
-hook_gap   = 65;    // [40:5:110]  mouth of the hook, deg
+hook_ro    = 4.6;   // [3:0.1:8]   eyelet outer radius
+hook_wall  = 1.9;   // [1.2:0.1:3] material round the hole
+hook_h     = 5;     // [3:0.5:9]   eyelet height
+// buttress that roots the mounting tongue into the base
+gus_w      = 5.4;   // [4:0.2:14]  width across
+gus_d      = 2.3;   // [1:0.1:4]   depth behind the flat face
 
 /* [Build] */
 blade_t    = 1.6;   // [1:0.1:4]
@@ -128,20 +130,25 @@ module irisBase(){
     // flat mounting face at the back - it lands in the gap the clocking leaves
     translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
   }
+  // Buttress: the tongue used to meet only the 2.6 mm edge of the disc, so
+  // most of its height was a butt joint in mid air. This roots it over its
+  // whole height. It sits in the narrow Y band where the blades only reach
+  // x = -13.4, and stops below the ring.
+  translate([-flat_r, -gus_w/2, -5.65 + base_t/2])
+    cube([gus_d, gus_w, (ring_z - 0.3) - (-5.65 + base_t/2)]);
   // the tongue has to cross that flat, so it is added after the cut
   translate([0, 0, base_t/2]) irisArm();
  }
 }
 
-// ---- a band hook: a C in plan, extruded - short, stiff, nothing to snap off
-// The mouth faces away from the pull, so band tension seats it deeper.
+// ---- band eyelet: a closed loop with a hole you strap the band through ----
+// Closed, so the band cannot lift out; the hole is vertical, so it prints with
+// no overhang and the walls carry the pull in tension rather than bending.
 module bandHook(face = 0){
   linear_extrude(hook_h)
     difference(){
       circle(r = hook_ro);
       circle(r = hook_ro - hook_wall);
-      rotate(face - hook_gap/2) polygon([[0,0], [2*hook_ro,0],
-        [2*hook_ro*cos(hook_gap), 2*hook_ro*sin(hook_gap)]]);
     }
 }
 
