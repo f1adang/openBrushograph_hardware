@@ -35,9 +35,9 @@ iris_clock = 92;    // [0:1:120]
 mount_hole = 3.4;   // [2.8:0.1:4.5]
 band_ang   = 75;    // [30:5:150]  ring hook, measured round from that post
 band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
-hook_ro    = 4.6;   // [3:0.1:8]   eyelet outer radius
-hook_wall  = 1.9;   // [1.2:0.1:3] material round the hole
-hook_h     = 5;     // [3:0.5:9]   eyelet height
+hook_ro    = 4.8;   // [3:0.1:8]   hook outer radius
+hook_wall  = 2.0;   // [1.2:0.1:3] hook thickness
+hook_mouth = 95;    // [50:5:140]  how far the hook is open, deg
 // buttress that roots the mounting tongue into the base
 gus_w      = 5.4;   // [4:0.2:14]  width across
 gus_d      = 2.3;   // [1:0.1:4]   depth behind the flat face
@@ -117,7 +117,7 @@ module irisBase(){
         hull(){ translate([R_base - 4, 0, 0]) cylinder(r = 4, h = base_t);
                 translate([R_ear, 0, 0])      cylinder(r = 3.5, h = base_t); }
         // band hook, standing clear of the blades' swept radius
-        translate([R_ear, 0, 0]) bandHook(180);
+        translate([R_ear, 0, 0]) bandHook(-44, base_t);
       }
       // three pivot posts, each shouldered to its blade's height
       for (i = [0:2]) rotate([0,0,120*i + iris_clock]) translate([Rp, 0, 0]){
@@ -130,26 +130,63 @@ module irisBase(){
     // flat mounting face at the back - it lands in the gap the clocking leaves
     translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
   }
-  // Buttress: the tongue used to meet only the 2.6 mm edge of the disc, so
-  // most of its height was a butt joint in mid air. This roots it over its
-  // whole height. It sits in the narrow Y band where the blades only reach
-  // x = -13.4, and stops below the ring.
-  translate([-flat_r, -gus_w/2, -5.65 + base_t/2])
-    cube([gus_d, gus_w, (ring_z - 0.3) - (-5.65 + base_t/2)]);
+  mountBrace();
   // the tongue has to cross that flat, so it is added after the cut
   translate([0, 0, base_t/2]) irisArm();
  }
 }
 
-// ---- band eyelet: a closed loop with a hole you strap the band through ----
-// Closed, so the band cannot lift out; the hole is vertical, so it prints with
-// no overhang and the walls carry the pull in tension rather than bending.
-module bandHook(face = 0){
-  linear_extrude(hook_h)
-    difference(){
-      circle(r = hook_ro);
-      circle(r = hook_ro - hook_wall);
+// ---- plain open hook: stretch the band and slip it straight on -----------
+// The mouth faces away from the pull, so tension pulls the band into the crook
+// rather than out of it, and a barb on the tip stops it walking off. Drawn in
+// plan and extruded, so it prints with no overhang at all.
+module bandHook(face = 0, h = 3){
+  linear_extrude(h)
+    union(){
+      difference(){
+        circle(r = hook_ro);
+        circle(r = hook_ro - hook_wall);
+        rotate(face - hook_mouth/2)
+          polygon([[0,0], [3*hook_ro, 0],
+                   [3*hook_ro*cos(hook_mouth), 3*hook_ro*sin(hook_mouth)]]);
+      }
+      rotate(face + hook_mouth/2) translate([hook_ro - hook_wall/2, 0])
+        circle(d = hook_wall*1.4);       // barb on the tip
     }
+}
+
+// ---- brace that roots the tongue into the base -------------------------
+// Grown rather than bolted on: a trunk running up the flat face, thickest low
+// down where the bending moment is, then roots fanning out underneath the base
+// disc where there is open space. Load spreads into the disc over a wide arc
+// instead of stopping at one 2.6 mm edge. Everything is trimmed off flush at
+// the flat, so the mounting face stays flat.
+// The trunk is squeezed into the narrow band the blades leave behind the flat;
+// the roots sit below the disc, where they can be as fat as they like.
+module mountBrace(){
+  difference(){
+    union(){
+      // trunk: full height of the tongue, tapering as it rises
+      hull(){
+        translate([-flat_r + 1.15, 0, -4.1]) scale([1, 2.3, 1]) sphere(r = 1.15);
+        translate([-flat_r + 1.15, 0,  2.2]) scale([1, 2.3, 1]) sphere(r = 1.15);
+      }
+      hull(){
+        translate([-flat_r + 1.15, 0,  2.2]) scale([1, 2.3, 1]) sphere(r = 1.15);
+        translate([-flat_r + 1.10, 0,  8.0]) scale([1, 1.5, 1]) sphere(r = 1.00);
+      }
+      // roots, fanning out under the disc
+      for (s = [-1, 1]){
+        hull(){ translate([-flat_r + 1.5, s*0.9, -2.8]) sphere(r = 1.6);
+                translate([-11.0, s*7.5, -0.9]) sphere(r = 1.35); }
+        hull(){ translate([-flat_r + 1.5, s*0.9, -2.0]) sphere(r = 1.5);
+                translate([ -6.0, s*11.0, -0.8]) sphere(r = 1.10); }
+        hull(){ translate([-flat_r + 1.5, s*0.9, -1.2]) sphere(r = 1.4);
+                translate([-13.8, s*3.8, -0.7]) sphere(r = 1.20); }
+      }
+    }
+    translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);   // keep the back flat
+  }
 }
 
 // ---- mounting tongue: same interface the old penHolder used ------------
@@ -179,7 +216,7 @@ module irisRing(){
           translate([R_ring - 2, 0, 0])   cylinder(r = 3.0, h = ring_t);
           translate([band_hook_r, 0, 0])  cylinder(r = hook_ro, h = ring_t);
         }
-        translate([band_hook_r, 0, 0]) bandHook(0);
+        translate([band_hook_r, 0, 0]) bandHook(61, ring_t);
       }
     }
     translate([0,0,-1]) cylinder(r = max(r_open + 1.2, pin_rmin - pin_d/2 - wall),
