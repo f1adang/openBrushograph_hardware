@@ -39,7 +39,14 @@ mount_hole = 3.4;   // [2.8:0.1:4.5]
 // tabs have to stay out of that rear sector as well as off the drive slots.
 band_ang   = 255;   // [30:5:300]  ring hook, measured round from that hook
 // finger tab: clear of both hooks and of the ring's drive slots
-tab_ang    = 140;   // [0:5:355]
+tab_ang    = 125;   // [0:5:355]
+// teeth on the blades' gripping edges
+tooth_p    = 1.3;   // [0.6:0.1:3]  pitch along the edge
+tooth_d    = 0.40;  // [0.1:0.05:1] how deep they bite
+// manual lever
+lever_d    = 8.0;   // [5:0.5:14]   thumb boss diameter
+lever_h    = 5.0;   // [2:0.5:10]   how far it stands above the ring
+lever_w    = 9.0;   // [5:0.5:16]   paddle width
 band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
 // A hook is a hole for the band with a slot running out to the edge: slip the
 // band through the slot and it sits in the hole. Cut into the plate itself, so
@@ -86,6 +93,7 @@ blade_R  = Rp + (post_d + 2*wall + 1.2)/2;      // blades' swept radius
 R_hook_base = R_base + 0.4;
 R_hook_ring = R_ring + 0.7;                     // ...on a small tab past the ring's rim
 slot_ang    = [for(i=[0:2]) (120*i + psi_of(0) + iris_clock) % 360];
+lever_r     = R_ring + 4;                       // thumb boss centre
 flat_r   = 16.3;                                // flat mounting face, from the axis
 // mount rib: wide and deep at the plate, narrow where it passes the blades
 arm_h    = 11.3;                         // tongue height, matches the rack slot
@@ -105,6 +113,20 @@ echo(str("  base dia ", 2*R_base, "  ring dia ", 2*R_ring, "  height ", top_z,
 // ---- one blade; printed three times ------------------------------------
 // Local frame: pivot at the origin, working edge is the straight line
 // x = -edge_off, material to the right of it. Placing it is just rotate(th).
+// One simple closed polygon, not a row of touching triangles: consecutive
+// triangles share an edge exactly, and the union of those is not manifold - it
+// silently fails to cut at all.
+saw_n  = ceil((edge_len + 3)/tooth_p);
+saw_y0 = -2;
+function sawtooth() = concat(
+  [[-edge_off - 1.5, saw_y0]],
+  [ for (k = [0 : saw_n]) each [
+      [-edge_off - 0.02,    saw_y0 + k*tooth_p],
+      [-edge_off + tooth_d, saw_y0 + (k + 0.65)*tooth_p] ] ],
+  [[-edge_off - 0.02, saw_y0 + (saw_n + 1)*tooth_p],
+   [-edge_off - 1.5,  saw_y0 + (saw_n + 1)*tooth_p]]
+);
+
 module irisBlade(){
   p = [pin_arm*cos(pin_dir), pin_arm*sin(pin_dir)];
   difference(){
@@ -120,6 +142,11 @@ module irisBlade(){
       translate([p[0], p[1], 0]) cylinder(d = pin_d, h = top_z - blade_z[0] - 0.5);
     }
     translate([0,0,-1]) cylinder(d = post_d + play, h = blade_t + 2);
+    // Sawtooth along the gripping edge. The tips are left exactly on the
+    // design line x = -edge_off, so the three edges are still tangent to one
+    // circle on the axis and the centring is untouched - only the valleys are
+    // cut back, which is what lets the teeth bite instead of sliding.
+    translate([0,0,-1]) linear_extrude(blade_t + 2) polygon(sawtooth());
   }
 }
 
@@ -214,7 +241,20 @@ module irisRing(){
     union(){
       cylinder(r = R_ring, h = ring_t);
       // finger tab, and a tab over the ear carrying the lock slot
-      rotate([0,0,tab_ang]) translate([R_ring - 2, -4, 0]) cube([10, 8, ring_t]);
+      // Manual lever: a rounded paddle with a raised thumb boss. Nothing
+      // square to dig into a fingertip, and the boss gives something to push
+      // sideways rather than pinching the ring's rim.
+      rotate([0,0,tab_ang]){
+        hull(){
+          translate([R_ring - 3, 0, 0]) cylinder(r = 4.0,       h = ring_t);
+          translate([lever_r,   0, 0])  cylinder(r = lever_w/2, h = ring_t);
+        }
+        translate([lever_r, 0, 0]){
+          cylinder(d = lever_d, h = ring_t + lever_h);
+          translate([0, 0, ring_t + lever_h])
+            cylinder(d1 = lever_d, d2 = lever_d - 2.4, h = 1.2);   // eased top
+        }
+      }
       // tab carrying the ring's band hook
       rotate([0,0,lock_ang + band_ang]) hull(){
         translate([R_ring - 3, 0, 0])    cylinder(r = 3.2, h = ring_t);
