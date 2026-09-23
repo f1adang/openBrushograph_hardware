@@ -22,7 +22,7 @@ pin_dir    = 140;   // [0:5:355]    pin direction at the open end
 // tool axis on the rack's X - the base's -X edge has to clear the Z-rail
 axis_x     = 33;    // [25:0.5:50]
 axis_y     = -4.28; // [-12:0.1:4]
-axis_z     = 18.5;  // [5:0.1:40]
+axis_z     = 13.15; // [5:0.1:40]  set so the tongue lands in the rack's slot
 // A rubber band pulls the ring closed, so the iris grips on its own: twist the
 // tab open against the band, drop the brush in, let go. No screw, no tool.
 // The iris amplifies barrel load 13x (open) to 26x (closed) back into the ring,
@@ -35,9 +35,11 @@ lock_ang   = 32;    // [0:1:355]   where the base's band hook sits
 iris_clock = 92;    // [0:1:120]
 // screw hole in the mounting tongue - clearance, so the screw pulls it tight
 mount_hole = 3.4;   // [2.8:0.1:4.5]
-band_ang   = 135;   // [30:5:210]  ring hook, measured round from that hook
+// The tongue now reaches up into the ring's plane at the back, so the ring's
+// tabs have to stay out of that rear sector as well as off the drive slots.
+band_ang   = 255;   // [30:5:300]  ring hook, measured round from that hook
 // finger tab: clear of both hooks and of the ring's drive slots
-tab_ang    = 290;   // [0:5:355]
+tab_ang    = 140;   // [0:5:355]
 band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
 // A hook is a hole for the band with a slot running out to the edge: slip the
 // band through the slot and it sits in the hole. Cut into the plate itself, so
@@ -51,7 +53,7 @@ gus_d      = 2.3;   // [1:0.1:4]   depth behind the flat face
 
 /* [Build] */
 blade_t    = 1.6;   // [1:0.1:4]
-base_t     = 2.6;   // [1.6:0.1:5]
+base_t     = 3.6;   // [1.6:0.1:8]  also the root depth of the mount rib
 ring_t     = 3;     // [2:0.1:6]
 post_d     = 3.0;   // [2:0.1:5]
 pin_d      = 3.0;   // [2:0.1:5]
@@ -85,6 +87,12 @@ R_hook_base = R_base + 0.4;
 R_hook_ring = R_ring + 0.7;                     // ...on a small tab past the ring's rim
 slot_ang    = [for(i=[0:2]) (120*i + psi_of(0) + iris_clock) % 360];
 flat_r   = 16.3;                                // flat mounting face, from the axis
+// mount rib: wide and deep at the plate, narrow where it passes the blades
+arm_h    = 11.3;                         // tongue height, matches the rack slot
+rib_w    = 11.0;  rib_d  = 2.3;          // at the bed
+rib_w2   = 5.2;   rib_d2 = 1.6;          // where it passes the blades
+rib_w3   = 3.6;   rib_d3 = 1.2;          // at the top
+rib_h    = 8.3;                          // stops below the ring
 blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
 ring_z   = blade_z[2] + blade_t + 0.7;   // clears the tallest pivot stud
 top_z    = ring_z + ring_t;
@@ -142,9 +150,9 @@ module irisBase(){
     // flat mounting face at the back - it lands in the gap the clocking leaves
     translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
   }
-  mountBrace();
+  mountRib();
   // the tongue has to cross that flat, so it is added after the cut
-  translate([0, 0, base_t/2]) irisArm();
+  irisArm();
  }
 }
 
@@ -158,37 +166,30 @@ module hookCut(reach = 12){
   translate([0, -hook_slot/2]) square([reach, hook_slot]);
 }
 
-// ---- brace that roots the tongue into the base -------------------------
-// Grown rather than bolted on: a trunk running up the flat face, thickest low
-// down where the bending moment is, then roots fanning out underneath the base
-// disc where there is open space. Load spreads into the disc over a wide arc
-// instead of stopping at one 2.6 mm edge. Everything is trimmed off flush at
-// the flat, so the mounting face stays flat.
-// The trunk is squeezed into the narrow band the blades leave behind the flat;
-// the roots sit below the disc, where they can be as fat as they like.
-module mountBrace(){
+// ---- rib that roots the tongue into the base ---------------------------
+// Straight and tapered, not blobby. The base plate is the root; a single web
+// carries the tongue up from it, thickest at the bottom where the bending
+// moment is greatest and tapering as that moment falls off. It tapers inwards
+// going up, so it prints with no overhang. Above the plate it is limited to the
+// narrow gap the blades sweep past, and it stops short of the ring. Trimmed
+// flush at the flat, so the mounting face stays flat.
+module mountRib(){
   difference(){
     union(){
-      // trunk: full height of the tongue, tapering as it rises
+      // root, inside the plate's own thickness where no blade ever reaches:
+      // this is the wide part of the load path
       hull(){
-        translate([-flat_r + 1.15, 0, -4.1]) scale([1, 2.3, 1]) sphere(r = 1.15);
-        translate([-flat_r + 1.15, 0,  2.2]) scale([1, 2.3, 1]) sphere(r = 1.15);
+        translate([-flat_r, -rib_w/2, 0])              cube([rib_d, rib_w, 0.1]);
+        translate([-flat_r, -rib_w/2, base_t - 0.1])   cube([rib_d, rib_w, 0.1]);
       }
+      // web above it, held inside the gap the blades sweep past, tapering
+      // inwards as it rises so it needs no support
       hull(){
-        translate([-flat_r + 1.15, 0,  2.2]) scale([1, 2.3, 1]) sphere(r = 1.15);
-        translate([-flat_r + 1.10, 0,  7.1]) scale([1, 1.5, 1]) sphere(r = 1.00);  // stays under the ring
-      }
-      // roots, fanning out under the disc
-      for (s = [-1, 1]){
-        hull(){ translate([-flat_r + 1.5, s*0.9, -2.8]) sphere(r = 1.6);
-                translate([-11.0, s*7.5, -0.9]) sphere(r = 1.35); }
-        hull(){ translate([-flat_r + 1.5, s*0.9, -2.0]) sphere(r = 1.5);
-                translate([ -6.0, s*11.0, -0.8]) sphere(r = 1.10); }
-        hull(){ translate([-flat_r + 1.5, s*0.9, -1.2]) sphere(r = 1.4);
-                translate([-13.8, s*3.8, -0.7]) sphere(r = 1.20); }
+        translate([-flat_r, -rib_w2/2, base_t])        cube([rib_d2, rib_w2, 0.1]);
+        translate([-flat_r, -rib_w3/2, rib_h - 0.1])   cube([rib_d3, rib_w3, 0.1]);
       }
     }
-    translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);   // keep the back flat
+    translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
   }
 }
 
@@ -196,13 +197,14 @@ module mountBrace(){
 module irisArm(){
   difference(){
     union(){
-      // runs from the rack out to the flat face, and no further - past that it
-      // would be inside the blades' sweep
-      translate([8 - axis_x, -1.5, -5.65]) cube([(-flat_r) - (8 - axis_x), 3, 11.3]);
-      translate([11.5 - axis_x, -2.5, 0]) rotate([90,0,0])
+      // Runs from the rack out to the flat face and no further; past that it
+      // would be inside the blades' sweep. Built up from z=0 so the whole part
+      // has one flat face on the bed.
+      translate([8 - axis_x, -1.5, 0]) cube([(-flat_r) - (8 - axis_x), 3, arm_h]);
+      translate([11.5 - axis_x, -2.5, arm_h/2]) rotate([90,0,0])
         cylinder(h = 2.4, d = 7, center = true);
     }
-    translate([11.5 - axis_x, 10, 0]) rotate([90,0,0]) cylinder(20, d = mount_hole);
+    translate([11.5 - axis_x, 10, arm_h/2]) rotate([90,0,0]) cylinder(20, d = mount_hole);
   }
 }
 
