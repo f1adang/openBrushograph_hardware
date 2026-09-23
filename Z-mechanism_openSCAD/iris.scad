@@ -1,0 +1,172 @@
+// openBrushograph - iris tool holder
+// ---------------------------------------------------------------------------
+// A camera-lens iris. Three identical blades pivot on posts in the base; a ring
+// with three radial slots drives them all at once. Three straight blade edges at
+// 120 deg are always tangent to one circle centred on the axis, so the centring
+// is exact and purely geometric - nothing to couple, preload or calibrate, and
+// it does not depend on force, friction, backlash or elasticity.
+//
+// Blades sit at three heights so they can sweep past each other, as in a real
+// iris. The blades stay identical; the base's posts carry the three offsets.
+
+/* [Capacity] */
+bore_max   = 13;    // [6:0.5:25]   largest barrel
+bore_slack = 0.8;   // [0:0.1:2]    insertion clearance on top of that
+bore_min   = 3.2;   // [1:0.1:8]    smallest barrel it closes down to
+
+/* [Iris geometry] */
+Rp         = 14.5;  // [10:0.25:20] pivot post circle
+pin_arm    = 4.5;   // [3:0.25:10]  drive pin, from its blade's pivot
+pin_dir    = 140;   // [0:5:355]    pin direction at the open end
+/* [Mount and lock] */
+// tool axis on the rack's X - the base's -X edge has to clear the Z-rail
+axis_x     = 35;    // [25:0.5:50]
+axis_y     = -4.28; // [-12:0.1:4]
+axis_z     = 18.5;  // [5:0.1:40]
+// radial pinch screw that locks the ring; the iris amplifies barrel load about
+// 27x back into the ring, so it needs a positive lock, not friction alone
+lock_screw = 2.8;   // [2:0.1:5]
+lock_ang   = 180;   // [0:5:355]
+
+/* [Build] */
+blade_t    = 1.6;   // [1:0.1:4]
+base_t     = 2.6;   // [1.6:0.1:5]
+ring_t     = 3;     // [2:0.1:6]
+post_d     = 3.0;   // [2:0.1:5]
+pin_d      = 3.0;   // [2:0.1:5]
+play       = 0.3;   // [0.15:0.05:0.6]
+blade_gap  = 0.25;  // [0.1:0.05:0.6]
+wall       = 1.6;   // [1.2:0.1:4]
+quality    = 96;    // [24:8:160]
+
+/* [Hidden] */
+$fn = quality;
+r_open  = bore_max/2 + bore_slack;
+r_close = bore_min/2;
+edge_off = Rp - r_open;                       // edge line, from its pivot
+// blade angle for a given bore, and the resulting ring angle
+function th_of_r(r) = acos((r + edge_off)/Rp);
+function pinpos(th) = [Rp + pin_arm*cos(pin_dir + th), pin_arm*sin(pin_dir + th)];
+function psi_of(th) = atan2(pinpos(th)[1], pinpos(th)[0]);
+th_close = th_of_r(r_close);
+psi_span = psi_of(0) - psi_of(th_close);
+// the edge must reach the tangent point, which slides to (-edge_off, Rp*sin th)
+edge_len = Rp*sin(th_close) + 2.5;
+pin_rmin = min(norm(pinpos(0)), norm(pinpos(th_close)));
+pin_rmax = max(norm(pinpos(0)), norm(pinpos(th_close)));
+R_base   = Rp + post_d/2 + wall + 0.6;
+R_ring   = pin_rmax + pin_d/2 + wall;
+blade_R  = Rp + (post_d + 2*wall + 1.2)/2;      // blades' swept radius
+R_ear    = blade_R + 3.5 + 0.8;                 // lock post, clear of that
+blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
+ring_z   = blade_z[2] + blade_t + 0.3;
+top_z    = ring_z + ring_t;
+
+echo(str("iris: bore ", 2*r_open, " -> ", 2*r_close, " mm,  blades swing ",
+         th_close, " deg,  ring turns ", psi_span, " deg"));
+echo(str("  base dia ", 2*R_base, "  ring dia ", 2*R_ring, "  height ", top_z,
+         "  edge len ", edge_len, "  pin R ", pin_rmin, "..", pin_rmax));
+
+// ---- one blade; printed three times ------------------------------------
+// Local frame: pivot at the origin, working edge is the straight line
+// x = -edge_off, material to the right of it. Placing it is just rotate(th).
+module irisBlade(){
+  p = [pin_arm*cos(pin_dir), pin_arm*sin(pin_dir)];
+  difference(){
+    union(){
+      linear_extrude(blade_t)
+        hull(){
+          circle(d = post_d + 2*wall + 1.2);                    // pivot hub
+          translate(p) circle(d = pin_d + 2*wall);              // pin boss
+          translate([-edge_off + wall, 0])       circle(r = wall);
+          translate([-edge_off + wall, edge_len]) circle(r = wall);
+        }
+      // drive pin, long enough to reach the ring from the lowest blade
+      translate([p[0], p[1], 0]) cylinder(d = pin_d, h = top_z - blade_z[0] - 0.5);
+    }
+    translate([0,0,-1]) cylinder(d = post_d + play, h = blade_t + 2);
+  }
+}
+
+// ---- the base ----------------------------------------------------------
+module irisBase(){
+  difference(){
+    union(){
+      cylinder(r = R_base, h = base_t);
+      // No guide rim: the three drive pins sitting in three radial slots
+      // already centre the ring, and a rim would foul the blade hubs.
+      // Local ear instead, carrying the lock screw.
+      rotate([0,0,lock_ang]){
+        // web at base level only - under the blades
+        hull(){ translate([R_base - 4, 0, 0]) cylinder(r = 4, h = base_t);
+                translate([R_ear, 0, 0])      cylinder(r = 3.5, h = base_t); }
+        // post standing clear of the blades' swept radius
+        translate([R_ear, 0, 0]) cylinder(r = 3.5, h = top_z);
+      }
+      // three pivot posts, each shouldered to its blade's height
+      // the tongue that plugs into the Z-rack
+      translate([0, 0, base_t/2]) irisArm();
+      for (i = [0:2]) rotate([0,0,120*i]) translate([Rp, 0, 0]){
+        if (blade_z[i] > base_t)
+          cylinder(d = post_d + 2.2, h = blade_z[i]);
+        cylinder(d = post_d, h = blade_z[i] + blade_t + 0.4);
+      }
+    }
+    translate([0,0,-1]) cylinder(r = r_open + 0.6, h = base_t + 2);   // the bore
+    // lock screw: down through the ring's tab into the ear
+    rotate([0,0,lock_ang]) translate([R_ear, 0, base_t]) cylinder(d = lock_screw, h = top_z);
+  }
+}
+
+// ---- mounting tongue: same interface the old penHolder used ------------
+module irisArm(){
+  difference(){
+    union(){
+      translate([8 - axis_x, -1.5, -5.65]) cube([12, 3, 11.3]);
+      translate([11.5 - axis_x, -2.5, 0]) rotate([90,0,0])
+        cylinder(h = 2.4, d = 7, center = true);
+    }
+    translate([11.5 - axis_x, 10, 0]) rotate([90,0,0]) cylinder(20, d = 2.9);
+  }
+}
+
+// ---- the ring ----------------------------------------------------------
+module irisRing(){
+  difference(){
+    union(){
+      cylinder(r = R_ring, h = ring_t);
+      // finger tab, and a tab over the ear carrying the lock slot
+      rotate([0,0,60]) translate([R_ring - 2, -4, 0]) cube([10, 8, ring_t]);
+      rotate([0,0,lock_ang]) hull(){
+        translate([R_ring - 1, 0, 0]) cylinder(r = 3.0, h = ring_t);
+        translate([R_ear, 0, 0])      cylinder(r = 3.5, h = ring_t);
+      }
+    }
+    translate([0,0,-1]) cylinder(r = max(r_open + 1.2, pin_rmin - pin_d/2 - wall),
+                                 h = ring_t + 2);
+    // arc slot for the lock screw, spanning the ring's travel
+    rotate([0,0,lock_ang]) for (k = [0:12])
+      rotate([0,0,-psi_span*k/12 - 2]) translate([R_ear, 0, -1])
+        cylinder(d = lock_screw + 1.2, h = ring_t + 2);
+    // three radial slots for the blades' drive pins
+    for (i = [0:2]) rotate([0,0,120*i + psi_of(0)])
+      translate([0,0,-1]) linear_extrude(ring_t + 2)
+        hull(){
+          translate([pin_rmin - 0.6, 0]) circle(d = pin_d + play);
+          translate([pin_rmax + 0.6, 0]) circle(d = pin_d + play);
+        }
+  }
+}
+
+// ---- assembly ----------------------------------------------------------
+module irisShow(bore = 8){
+  th = th_of_r(bore/2);
+  color("Khaki")   irisBase();
+  for (i = [0:2]) rotate([0,0,120*i])
+    color(["Tomato","Coral","Salmon"][i])
+      translate([0,0,blade_z[i]]) translate([Rp,0,0]) rotate([0,0,th]) irisBlade();
+  color("MediumSeaGreen")
+    translate([0,0,ring_z]) rotate([0,0,psi_of(th) - psi_of(0)]) irisRing();
+  color("SteelBlue",0.6) translate([0,0,-8]) cylinder(d = bore, h = 30);
+}
+translate([axis_x, axis_y, axis_z]) irisShow(13);
