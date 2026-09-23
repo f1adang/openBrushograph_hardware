@@ -20,18 +20,25 @@ pin_arm    = 4.5;   // [3:0.25:10]  drive pin, from its blade's pivot
 pin_dir    = 140;   // [0:5:355]    pin direction at the open end
 /* [Mount and lock] */
 // tool axis on the rack's X - the base's -X edge has to clear the Z-rail
-axis_x     = 35;    // [25:0.5:50]
+axis_x     = 33;    // [25:0.5:50]
 axis_y     = -4.28; // [-12:0.1:4]
 axis_z     = 18.5;  // [5:0.1:40]
 // A rubber band pulls the ring closed, so the iris grips on its own: twist the
 // tab open against the band, drop the brush in, let go. No screw, no tool.
 // The iris amplifies barrel load 13x (open) to 26x (closed) back into the ring,
 // so ~7-15 N of band gives ~10 N per blade - about 12 N of axial hold.
-lock_ang   = 180;   // [0:5:355]   where the base's band post sits
+lock_ang   = 0;     // [0:5:355]   where the base's band hook sits (front)
+// the iris is clocked so the blade sweep leaves a gap at the back, letting the
+// mounting face be flat and sit as close to the machine as possible
+iris_clock = 92;    // [0:1:120]
+// screw hole in the mounting tongue - clearance, so the screw pulls it tight
+mount_hole = 3.4;   // [2.8:0.1:4.5]
 band_ang   = 75;    // [30:5:150]  ring hook, measured round from that post
-band_post  = 3.5;   // [2.5:0.1:6] band post diameter
-band_head  = 1.1;   // [0:0.1:2.5] lip that keeps the band on
 band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
+hook_ro    = 4.2;   // [3:0.1:7]   hook outer radius
+hook_wall  = 1.7;   // [1.2:0.1:3] hook wall
+hook_h     = 5;     // [3:0.5:9]   hook height
+hook_gap   = 65;    // [40:5:110]  mouth of the hook, deg
 
 /* [Build] */
 blade_t    = 1.6;   // [1:0.1:4]
@@ -62,7 +69,8 @@ pin_rmax = max(norm(pinpos(0)), norm(pinpos(th_close)));
 R_base   = Rp + post_d/2 + wall + 0.6;
 R_ring   = pin_rmax + pin_d/2 + wall;
 blade_R  = Rp + (post_d + 2*wall + 1.2)/2;      // blades' swept radius
-R_ear    = blade_R + 3.5 + 0.8;                 // lock post, clear of that
+R_ear    = blade_R + hook_ro + 0.8;             // band hook, clear of that
+flat_r   = 16.3;                                // flat mounting face, from the axis
 blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
 ring_z   = blade_z[2] + blade_t + 0.7;   // clears the tallest pivot stud
 top_z    = ring_z + ring_t;
@@ -95,6 +103,7 @@ module irisBlade(){
 
 // ---- the base ----------------------------------------------------------
 module irisBase(){
+ union(){
   difference(){
     union(){
       cylinder(r = R_base, h = base_t);
@@ -105,35 +114,48 @@ module irisBase(){
         // web at base level only - under the blades
         hull(){ translate([R_base - 4, 0, 0]) cylinder(r = 4, h = base_t);
                 translate([R_ear, 0, 0])      cylinder(r = 3.5, h = base_t); }
-        // band post, standing clear of the blades' swept radius
-        translate([R_ear, 0, 0]){
-          cylinder(d = band_post, h = top_z + 3);
-          translate([0,0,top_z + 3]) cylinder(d1 = band_post, d2 = band_post + 2*band_head, h = 1.2);
-          translate([0,0,top_z + 4.2]) cylinder(d = band_post + 2*band_head, h = 1);
-        }
+        // band hook, standing clear of the blades' swept radius
+        translate([R_ear, 0, 0]) bandHook(180);
       }
       // three pivot posts, each shouldered to its blade's height
-      // the tongue that plugs into the Z-rack
-      translate([0, 0, base_t/2]) irisArm();
-      for (i = [0:2]) rotate([0,0,120*i]) translate([Rp, 0, 0]){
+      for (i = [0:2]) rotate([0,0,120*i + iris_clock]) translate([Rp, 0, 0]){
         if (blade_z[i] > base_t)
           cylinder(d = post_d + 2.2, h = blade_z[i]);
         cylinder(d = post_d, h = blade_z[i] + blade_t + 0.4);
       }
     }
     translate([0,0,-1]) cylinder(r = r_open + 0.6, h = base_t + 2);   // the bore
+    // flat mounting face at the back - it lands in the gap the clocking leaves
+    translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
   }
+  // the tongue has to cross that flat, so it is added after the cut
+  translate([0, 0, base_t/2]) irisArm();
+ }
+}
+
+// ---- a band hook: a C in plan, extruded - short, stiff, nothing to snap off
+// The mouth faces away from the pull, so band tension seats it deeper.
+module bandHook(face = 0){
+  linear_extrude(hook_h)
+    difference(){
+      circle(r = hook_ro);
+      circle(r = hook_ro - hook_wall);
+      rotate(face - hook_gap/2) polygon([[0,0], [2*hook_ro,0],
+        [2*hook_ro*cos(hook_gap), 2*hook_ro*sin(hook_gap)]]);
+    }
 }
 
 // ---- mounting tongue: same interface the old penHolder used ------------
 module irisArm(){
   difference(){
     union(){
-      translate([8 - axis_x, -1.5, -5.65]) cube([12, 3, 11.3]);
+      // runs from the rack out to the flat face, and no further - past that it
+      // would be inside the blades' sweep
+      translate([8 - axis_x, -1.5, -5.65]) cube([(-flat_r) - (8 - axis_x), 3, 11.3]);
       translate([11.5 - axis_x, -2.5, 0]) rotate([90,0,0])
         cylinder(h = 2.4, d = 7, center = true);
     }
-    translate([11.5 - axis_x, 10, 0]) rotate([90,0,0]) cylinder(20, d = 2.9);
+    translate([11.5 - axis_x, 10, 0]) rotate([90,0,0]) cylinder(20, d = mount_hole);
   }
 }
 
@@ -148,20 +170,15 @@ module irisRing(){
       rotate([0,0,lock_ang + band_ang]){
         hull(){
           translate([R_ring - 2, 0, 0])   cylinder(r = 3.0, h = ring_t);
-          translate([band_hook_r, 0, 0])  cylinder(d = band_post + 2*wall, h = ring_t);
+          translate([band_hook_r, 0, 0])  cylinder(r = hook_ro, h = ring_t);
         }
-        translate([band_hook_r, 0, 0]){
-          cylinder(d = band_post, h = ring_t + 4.2);
-          translate([0,0,ring_t + 4.2])
-            cylinder(d1 = band_post, d2 = band_post + 2*band_head, h = 1.2);
-          translate([0,0,ring_t + 5.4]) cylinder(d = band_post + 2*band_head, h = 1);
-        }
+        translate([band_hook_r, 0, 0]) bandHook(0);
       }
     }
     translate([0,0,-1]) cylinder(r = max(r_open + 1.2, pin_rmin - pin_d/2 - wall),
                                  h = ring_t + 2);
     // three radial slots for the blades' drive pins
-    for (i = [0:2]) rotate([0,0,120*i + psi_of(0)])
+    for (i = [0:2]) rotate([0,0,120*i + psi_of(0) + iris_clock])
       translate([0,0,-1]) linear_extrude(ring_t + 2)
         hull(){
           translate([pin_rmin - 0.6, 0]) circle(d = pin_d + play);
@@ -174,7 +191,7 @@ module irisRing(){
 module irisShow(bore = 8){
   th = th_of_r(bore/2);
   color("Khaki")   irisBase();
-  for (i = [0:2]) rotate([0,0,120*i])
+  for (i = [0:2]) rotate([0,0,120*i + iris_clock])
     color(["Tomato","Coral","Salmon"][i])
       translate([0,0,blade_z[i]]) translate([Rp,0,0]) rotate([0,0,th]) irisBlade();
   color("MediumSeaGreen")
