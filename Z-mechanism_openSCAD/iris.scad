@@ -23,10 +23,15 @@ pin_dir    = 140;   // [0:5:355]    pin direction at the open end
 axis_x     = 35;    // [25:0.5:50]
 axis_y     = -4.28; // [-12:0.1:4]
 axis_z     = 18.5;  // [5:0.1:40]
-// radial pinch screw that locks the ring; the iris amplifies barrel load about
-// 27x back into the ring, so it needs a positive lock, not friction alone
-lock_screw = 2.8;   // [2:0.1:5]
-lock_ang   = 180;   // [0:5:355]
+// A rubber band pulls the ring closed, so the iris grips on its own: twist the
+// tab open against the band, drop the brush in, let go. No screw, no tool.
+// The iris amplifies barrel load 13x (open) to 26x (closed) back into the ring,
+// so ~7-15 N of band gives ~10 N per blade - about 12 N of axial hold.
+lock_ang   = 180;   // [0:5:355]   where the base's band post sits
+band_ang   = 75;    // [30:5:150]  ring hook, measured round from that post
+band_post  = 3.5;   // [2.5:0.1:6] band post diameter
+band_head  = 1.1;   // [0:0.1:2.5] lip that keeps the band on
+band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
 
 /* [Build] */
 blade_t    = 1.6;   // [1:0.1:4]
@@ -59,7 +64,7 @@ R_ring   = pin_rmax + pin_d/2 + wall;
 blade_R  = Rp + (post_d + 2*wall + 1.2)/2;      // blades' swept radius
 R_ear    = blade_R + 3.5 + 0.8;                 // lock post, clear of that
 blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
-ring_z   = blade_z[2] + blade_t + 0.3;
+ring_z   = blade_z[2] + blade_t + 0.7;   // clears the tallest pivot stud
 top_z    = ring_z + ring_t;
 
 echo(str("iris: bore ", 2*r_open, " -> ", 2*r_close, " mm,  blades swing ",
@@ -100,8 +105,12 @@ module irisBase(){
         // web at base level only - under the blades
         hull(){ translate([R_base - 4, 0, 0]) cylinder(r = 4, h = base_t);
                 translate([R_ear, 0, 0])      cylinder(r = 3.5, h = base_t); }
-        // post standing clear of the blades' swept radius
-        translate([R_ear, 0, 0]) cylinder(r = 3.5, h = top_z);
+        // band post, standing clear of the blades' swept radius
+        translate([R_ear, 0, 0]){
+          cylinder(d = band_post, h = top_z + 3);
+          translate([0,0,top_z + 3]) cylinder(d1 = band_post, d2 = band_post + 2*band_head, h = 1.2);
+          translate([0,0,top_z + 4.2]) cylinder(d = band_post + 2*band_head, h = 1);
+        }
       }
       // three pivot posts, each shouldered to its blade's height
       // the tongue that plugs into the Z-rack
@@ -113,8 +122,6 @@ module irisBase(){
       }
     }
     translate([0,0,-1]) cylinder(r = r_open + 0.6, h = base_t + 2);   // the bore
-    // lock screw: down through the ring's tab into the ear
-    rotate([0,0,lock_ang]) translate([R_ear, 0, base_t]) cylinder(d = lock_screw, h = top_z);
   }
 }
 
@@ -137,17 +144,22 @@ module irisRing(){
       cylinder(r = R_ring, h = ring_t);
       // finger tab, and a tab over the ear carrying the lock slot
       rotate([0,0,60]) translate([R_ring - 2, -4, 0]) cube([10, 8, ring_t]);
-      rotate([0,0,lock_ang]) hull(){
-        translate([R_ring - 1, 0, 0]) cylinder(r = 3.0, h = ring_t);
-        translate([R_ear, 0, 0])      cylinder(r = 3.5, h = ring_t);
+      // band hook: the band runs from here to the post on the base
+      rotate([0,0,lock_ang + band_ang]){
+        hull(){
+          translate([R_ring - 2, 0, 0])   cylinder(r = 3.0, h = ring_t);
+          translate([band_hook_r, 0, 0])  cylinder(d = band_post + 2*wall, h = ring_t);
+        }
+        translate([band_hook_r, 0, 0]){
+          cylinder(d = band_post, h = ring_t + 4.2);
+          translate([0,0,ring_t + 4.2])
+            cylinder(d1 = band_post, d2 = band_post + 2*band_head, h = 1.2);
+          translate([0,0,ring_t + 5.4]) cylinder(d = band_post + 2*band_head, h = 1);
+        }
       }
     }
     translate([0,0,-1]) cylinder(r = max(r_open + 1.2, pin_rmin - pin_d/2 - wall),
                                  h = ring_t + 2);
-    // arc slot for the lock screw, spanning the ring's travel
-    rotate([0,0,lock_ang]) for (k = [0:12])
-      rotate([0,0,-psi_span*k/12 - 2]) translate([R_ear, 0, -1])
-        cylinder(d = lock_screw + 1.2, h = ring_t + 2);
     // three radial slots for the blades' drive pins
     for (i = [0:2]) rotate([0,0,120*i + psi_of(0)])
       translate([0,0,-1]) linear_extrude(ring_t + 2)
