@@ -225,9 +225,13 @@ module irisBlade(){
 module organicDisc(r, h) {
     // A completely rounded pebble-like disc, max radius is r
     rotate_extrude() {
-        hull() {
-            translate([0, 0]) square([max(0.1, r - h/2), h]);
-            translate([max(0.1, r - h/2), h/2]) circle(d=h);
+        intersection() {
+            hull() {
+                translate([0, 0]) square([max(0.1, r - h/2), h]);
+                translate([max(0.1, r - h/2), h/2]) circle(d=h);
+            }
+            // Ensure no points have negative X to prevent rotate_extrude error
+            translate([0, -0.1]) square([r + h, h + 0.2]);
         }
     }
 }
