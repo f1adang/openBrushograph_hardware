@@ -16,8 +16,17 @@ bore_min   = 3.2;   // [1:0.1:8]    smallest barrel it closes down to
 
 /* [Iris geometry] */
 Rp         = 14.5;  // [10:0.25:20] pivot post circle
-pin_arm    = 4.5;   // [3:0.25:10]  drive pin, from its blade's pivot
-pin_dir    = 140;   // [0:5:355]    pin direction at the open end
+pin_arm    = 4.7;   // [3:0.05:10]  drive pin, from its blade's pivot
+pin_dir    = 136;   // [0:1:355]    pin direction at the open end
+// How far the ring's drive slot passes from the axis. A radial slot (0) makes
+// the ring angle exactly the pin's own polar angle, which is what made the
+// blades race: the whole 14.6 -> 3.2mm range went by in 20 deg of ring. Sliding
+// the slot off centre breaks that identity - as the pin works in or out along
+// the slot, the ring has to turn further to follow it - and buys back travel
+// without touching the ring's size or the blades' geometry. The centring is
+// untouched either way: it comes from the three edges being tangent to one
+// circle, which needs only that all three blades sit at the same angle.
+slot_off   = 7.6;   // [0:0.1:11]   slot's distance from the axis
 /* [Mount and lock] */
 // tool axis on the rack's X - the base's -X edge has to clear the Z-rail
 axis_x     = 33;    // [25:0.5:50]
@@ -27,22 +36,27 @@ axis_z     = 13.15; // [5:0.1:40]  set so the tongue lands in the rack's slot
 // tab open against the band, drop the brush in, let go. No screw, no tool.
 // The iris amplifies barrel load 13x (open) to 26x (closed) back into the ring,
 // so ~7-15 N of band gives ~10 N per blade - about 12 N of axial hold.
-// hook angles are chosen to land between the pivot posts and between the
-// ring's drive slots - posts sit at iris_clock + 0/120/240
-lock_ang   = 32;    // [0:1:355]   where the base's band hook sits
+// Closing turns the ring clockwise, so for the band's short wrap to pull it
+// shut the base hook has to lie clockwise of the ring hook. It did not: the
+// band was torquing the ring open. The base hook moves round to suit, landing
+// between the pivot posts, clear of all three ring guides, and inside the flat.
+lock_ang   = 210;   // [0:1:355]   where the base's band hook sits
 // the iris is clocked so the blade sweep leaves a gap at the back, letting the
 // mounting face be flat and sit as close to the machine as possible
 iris_clock = 92;    // [0:1:120]
 // screw hole in the mounting tongue - clearance, so the screw pulls it tight
 mount_hole = 3.4;   // [2.8:0.1:4.5]
-// The tongue now reaches up into the ring's plane at the back, so the ring's
-// tabs have to stay out of that rear sector as well as off the drive slots.
-band_ang   = 255;   // [30:5:300]  ring hook, measured round from that hook
+// The tongue reaches up into the ring's plane at the back, so the ring's tabs
+// stay out of that rear sector as well as off the drive slots and the guides.
+// This leaves the ring hook where it was, at 287 deg, and gives a 77 deg wrap:
+// long enough that the band keeps useful tension at the closed end, short
+// enough that little of its pull is lost to friction round the rim.
+band_ang   = 77;    // [10:1:300]  ring hook, measured round from that hook
 // finger tab: clear of both hooks and of the ring's drive slots
 tab_ang    = 125;   // [0:5:355]
 // teeth on the blades' gripping edges
 tooth_p    = 1.3;   // [0.6:0.1:3]  pitch along the edge
-tooth_d    = 0.40;  // [0.1:0.05:1] how deep they bite
+tooth_d    = 0.30;  // [0.1:0.05:1] how deep they bite
 // manual lever
 lever_d    = 8.0;   // [5:0.5:14]   thumb boss diameter
 lever_h    = 5.0;   // [2:0.5:10]   how far it stands above the ring
@@ -80,7 +94,7 @@ blade_t    = 1.6;   // [1:0.1:4]
 base_t     = 3.6;   // [1.6:0.1:8]  also the root depth of the mount rib
 ring_t     = 3;     // [2:0.1:6]
 post_d     = 3.0;   // [2:0.1:5]
-pin_d      = 3.0;   // [2:0.1:5]
+pin_d      = 2.6;   // [2:0.1:5]   slimmer, to clear the toothed edge
 play       = 0.3;   // [0.15:0.05:0.6]
 blade_gap  = 0.25;  // [0.1:0.05:0.6]
 wall       = 1.6;   // [1.2:0.1:4]
@@ -94,13 +108,26 @@ edge_off = Rp - r_open;                       // edge line, from its pivot
 // blade angle for a given bore, and the resulting ring angle
 function th_of_r(r) = acos((r + edge_off)/Rp);
 function pinpos(th) = [Rp + pin_arm*cos(pin_dir + th), pin_arm*sin(pin_dir + th)];
-function psi_of(th) = atan2(pinpos(th)[1], pinpos(th)[0]);
+// The pin rides on the straight slot, whose line passes slot_off from the axis.
+// Ring angle is then the pin's polar angle plus the angle it stands off that
+// line - the second term is what a radial slot throws away.
+function psi_of(th) = atan2(pinpos(th)[1], pinpos(th)[0])
+                      + acos(slot_off/norm(pinpos(th)));
 th_close = th_of_r(r_close);
 psi_span = psi_of(0) - psi_of(th_close);
 // the edge must reach the tangent point, which slides to (-edge_off, Rp*sin th)
 edge_len = Rp*sin(th_close) + 2.5;
-pin_rmin = min(norm(pinpos(0)), norm(pinpos(th_close)));
-pin_rmax = max(norm(pinpos(0)), norm(pinpos(th_close)));
+// The pin's radius is not monotonic - it dips as the arm swings through the
+// line of centres and comes back - so take the extremes over the whole travel,
+// not just the two ends.
+pin_rr   = [for (k = [0:60]) norm(pinpos(th_close*k/60))];
+pin_rmin = min(pin_rr);
+pin_rmax = max(pin_rr);
+// where the pin sits along the slot, measured from the foot of the perpendicular
+slot_end = 0.25;                                  // margin past each end of travel
+slot_y0  = sqrt(pin_rmin*pin_rmin - slot_off*slot_off) - slot_end;
+slot_y1  = sqrt(pin_rmax*pin_rmax - slot_off*slot_off) + slot_end;
+assert(slot_off < pin_rmin, "slot_off must be inside the pin's smallest radius");
 R_base   = Rp + post_d/2 + wall + 0.6;
 R_ring   = pin_rmax + pin_d/2 + wall;
 blade_R  = Rp + (post_d + 2*wall + 1.2)/2;      // blades' swept radius
@@ -142,6 +169,8 @@ echo(str("iris: bore ", 2*r_open, " -> ", 2*r_close, " mm,  blades swing ",
          th_close, " deg,  ring turns ", psi_span, " deg"));
 echo(str("  base dia ", 2*R_base, "  ring dia ", 2*R_ring, "  height ", top_z,
          "  edge len ", edge_len, "  pin R ", pin_rmin, "..", pin_rmax));
+echo(str("  guide wall reaches ", R_ring + guide_gap + guide_w,
+         "  (flat face is at ", flat_r, ")"));
 
 // ---- one blade; printed three times ------------------------------------
 // Local frame: pivot at the origin, working edge is the straight line
@@ -318,11 +347,13 @@ module irisRing(){
     rotate([0,0,lock_ang + band_ang]) translate([R_hook_ring, 0, -1])
       linear_extrude(ring_t + 2) hookCut(hook_id/2 + hook_wall + 2);
     // three radial slots for the blades' drive pins
+    // Three straight slots, each offset slot_off from the axis rather than
+    // running through it. Tight at both ends, so the travel has hard stops.
     for (i = [0:2]) rotate([0,0,120*i + psi_of(0) + iris_clock])
       translate([0,0,-1]) linear_extrude(ring_t + 2)
         hull(){
-          translate([pin_rmin - 0.6, 0]) circle(d = pin_d + play);
-          translate([pin_rmax + 0.6, 0]) circle(d = pin_d + play);
+          translate([slot_off, -slot_y0]) circle(d = pin_d + play);
+          translate([slot_off, -slot_y1]) circle(d = pin_d + play);
         }
   }
 }
