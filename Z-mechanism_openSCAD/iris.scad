@@ -40,7 +40,7 @@ axis_z     = 13.15; // [5:0.1:40]  set so the tongue lands in the rack's slot
 // shut the base hook has to lie clockwise of the ring hook. It did not: the
 // band was torquing the ring open. The base hook moves round to suit, landing
 // between the pivot posts, clear of all three ring guides, and inside the flat.
-lock_ang   = 210;   // [0:1:355]   where the base's band hook sits
+lock_ang   = 331;   // [0:1:355]   where the base's band hook sits
 // the iris is clocked so the blade sweep leaves a gap at the back, letting the
 // mounting face be flat and sit as close to the machine as possible
 iris_clock = 92;    // [0:1:120]
@@ -51,7 +51,7 @@ mount_hole = 3.4;   // [2.8:0.1:4.5]
 // This leaves the ring hook where it was, at 287 deg, and gives a 77 deg wrap:
 // long enough that the band keeps useful tension at the closed end, short
 // enough that little of its pull is lost to friction round the rim.
-band_ang   = 77;    // [10:1:300]  ring hook, measured round from that hook
+band_ang   = 55;    // [10:1:300]  ring hook, measured round from that hook
 // finger tab: clear of both hooks and of the ring's drive slots
 tab_ang    = 125;   // [0:5:355]
 // teeth on the blades' gripping edges
@@ -69,21 +69,30 @@ hook_id    = 5.2;   // [3:0.1:9]   hole the band sits in
 hook_slot  = 2.4;   // [1.5:0.1:4] slot the band slips through
 hook_wall  = 2.2;   // [1.2:0.1:4] material round the hole
 /* [Ring guide] */
-// The ring had nothing to run on. It floated above the top blade, located only
-// by its three drive pins in their slots - so it rocked. Three guides now rise
-// from the base, in the gaps the blade sweep leaves: a flat seat that reaches
-// in under the ring's rim, and, on the two that the ring's own tabs never sweep
-// over, a wall standing just outside that rim. The seats stop it rocking, the
-// walls keep it centred, and the band pulls it down onto both. All of it is in
-// the base - the ring gains nothing to print.
-guide_ang   = 85;   // [0:1:119]   lane centre, from the first pivot post
-guide_half  = 9;    // [4:0.5:14]  half-width of one guide
+// The ring rides on six supports, all of them part of the base.
+//
+// Three are the pivot posts themselves: no blade ever comes near another post's
+// spot, so every stud runs the full height and its top face carries the ring.
+// The ring sits down on them, which is also what retains the top blade.
+//
+// Three are guides standing in the gaps the blade sweep leaves, one centred on
+// the mounting extension and merged into it, so that side of the ring is
+// carried by the same structure that bolts to the machine. Each is a stepped
+// pillar: a seat under the ring's rim, and a wall outside it - an outward
+// stopper. The seat reaches further in, where the blades leave less room, so it
+// is the narrower of the two; the wall sits further out and can be wider.
+//
+// All three carry walls, which is why the band hooks sit where they do: nothing
+// on the ring may sweep across a guide, and that is asserted below rather than
+// left to the numbers in these comments.
+guide_ang   = 88;   // [0:1:119]   lane centre, from the first pivot post
+guide_half  = 10;   // [4:0.5:14]  half-width of a guide's wall
+seat_half   = 7;    // [3:0.5:12]  half-width of its seat, which reaches further
+                    //             in and so has less room between the blades
 guide_gap   = 0.25; // [0.1:0.05:0.6] running clearance at the ring's rim
 guide_w     = 1.4;  // [1:0.1:3]   wall thickness
-guide_flare = 1.1;  // [0:0.1:3]   extra thickness where it meets the plate
-seat_w      = 1.3;  // [0.8:0.1:3] how far the seat reaches in under the rim
-ring_lift   = 1.6;  // [0.8:0.1:3] blade top -> ring underside
-blade_clear = 0.3;  // [0.15:0.05:0.8] gap left above the blades
+seat_w      = 0.6;  // [0.3:0.1:3] how far the seat reaches in under the rim
+post_up     = 0.4;  // [0.2:0.1:2] how far a pivot stud stands above its blade
 
 // buttress that roots the mounting tongue into the base
 gus_w      = 5.4;   // [4:0.2:14]  width across
@@ -144,26 +153,26 @@ arm_h    = 11.3;                         // tongue height, matches the rack slot
 rib_w    = 11.0;  rib_d  = 2.3;          // at the bed
 rib_w2   = 5.2;   rib_d2 = 1.6;          // where it passes the blades
 rib_w3   = 3.6;   rib_d3 = 1.2;          // at the top
-rib_h    = 8.3;                          // stops below the ring
 blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
-ring_z   = blade_z[2] + blade_t + ring_lift;  // rides on the guide seats
+ring_z   = blade_z[2] + blade_t + post_up;    // sits on the pivot studs
 top_z    = ring_z + ring_t;
+rib_h    = top_z;                        // carries on into the rear guide
 guide_ri = R_ring + guide_gap;                  // wall's inner face
 guide_ro = guide_ri + guide_w;
-guide_rb = guide_ro + guide_flare;              // ...flared into the plate
 seat_ri  = R_ring - seat_w;                     // how far the seat reaches in
-seat_z0  = blade_z[2] + blade_t + blade_clear;  // underside of the seat
 guide_at = [for (i = [0:2]) (iris_clock + guide_ang + 120*i) % 360];
 // The seat must stay clear of the drive pins sweeping underneath it.
 assert(seat_ri > pin_rmax + pin_d/2 + 0.2, "seat_w too large: it fouls the drive pins");
 function angdiff(a, b) = abs(((a - b) % 360 + 540) % 360 - 180);
-// A guide can carry a wall only where neither of the ring's tabs ever sweeps.
+// Every guide carries a wall, so nothing on the ring may sweep across one.
 tab_at   = [(lock_ang + band_ang) % 360, tab_ang];
 tab_half = [asin((hook_id/2 + hook_wall)/R_hook_ring) + guide_half,
             asin((lever_w/2)/lever_r) + guide_half];
-function walledAt(g) =
-  min([for (j = [0:1]) min([for (k = [0:8])
-        angdiff(g, tab_at[j] - psi_span*k/8) - tab_half[j]])]) > 0;
+function guideClear(g) =
+  min([for (j = [0:1]) min([for (k = [0:12])
+        angdiff(g, tab_at[j] - psi_span*k/12) - tab_half[j]])]);
+assert(min([for (g = guide_at) guideClear(g)]) > 0,
+       "a ring tab sweeps into a guide - move the band hook or the lever");
 
 echo(str("iris: bore ", 2*r_open, " -> ", 2*r_close, " mm,  blades swing ",
          th_close, " deg,  ring turns ", psi_span, " deg"));
@@ -219,18 +228,22 @@ module irisBase(){
     union(){
       cylinder(r = R_base, h = base_t);
       // Three guides in the blade-free lanes carry the ring; see above.
-      for (i = [0:2]) guidePost(guide_at[i], walledAt(guide_at[i]));
+      for (g = guide_at) guidePost(g);
       // The band hook is a hole cut in a flat lobe on the rim, in the base
       // plate's own plane - nothing stands proud of it.
       rotate([0,0,lock_ang]) hull(){
         translate([R_base - 4, 0, 0])  cylinder(r = 4, h = base_t);
         translate([R_hook_base, 0, 0]) cylinder(r = hook_id/2 + hook_wall, h = base_t);
       }
-      // three pivot posts, each shouldered to its blade's height
+      // Three pivot posts, each shouldered to its blade's height. No blade
+      // ever reaches another post's spot - the nearest comes no closer than
+      // 8.4mm - so every stud carries on up to the ring and its top face
+      // becomes one of the ring's six supports. The stud over the top blade
+      // is what retains that blade, now that the ring sits right on it.
       for (i = [0:2]) rotate([0,0,120*i + iris_clock]) translate([Rp, 0, 0]){
         if (blade_z[i] > base_t)
           cylinder(d = post_d + 2.2, h = blade_z[i]);
-        cylinder(d = post_d, h = blade_z[i] + blade_t + 0.4);
+        cylinder(d = post_d, h = ring_z);
       }
     }
     translate([0,0,-1]) cylinder(r = r_open + 0.6, h = base_t + 2);   // the bore
@@ -247,19 +260,19 @@ module irisBase(){
 }
 
 // ---- guide that carries the ring ---------------------------------------
-// A stepped arc of revolution: seat below, wall above. Drawn as one r/z profile
-// whose outer face only ever narrows going up, so nothing overhangs and it
-// prints straight off the plate with the rest of the base.
-module guidePost(a, walled = true){
-  prof = concat(
-    [[guide_ri, 0], [guide_rb, 0], [guide_rb, base_t], [guide_ro, base_t + 2.5]],
-    walled ? [[guide_ro, top_z], [guide_ri, top_z], [guide_ri, ring_z]]
-           : [[guide_ro, ring_z]],
-    [[seat_ri, ring_z], [seat_ri, seat_z0], [guide_ri, seat_z0]]);
-  rotate([0,0,a]) intersection(){
-    rotate_extrude() polygon(prof);
-    linear_extrude(top_z + 1) polygon(concat([[0,0]],
-      [for (k = [-guide_half : guide_half/8 : guide_half]) [40*cos(k), 40*sin(k)]]));
+// Two plain pillars standing side by side, both straight off the plate: the
+// seat, which stops at the ring's underside, and the wall outside it, which
+// carries on past the ring's rim to stop it moving outwards. Nothing overhangs
+// and nothing is cantilevered - the load runs straight down into the plate.
+module arcBand(r0, r1, half, hgt){
+  linear_extrude(hgt) polygon(concat(
+    [for (k = [-half : 2*half/16 : half]) [r0*cos(k), r0*sin(k)]],
+    [for (k = [half : -2*half/16 : -half]) [r1*cos(k), r1*sin(k)]]));
+}
+module guidePost(a){
+  rotate([0,0,a]){
+    arcBand(seat_ri,  guide_ri, seat_half,  ring_z);   // seat, under the rim
+    arcBand(guide_ri, guide_ro, guide_half, top_z);    // wall, outside the rim
   }
 }
 
@@ -289,8 +302,11 @@ module mountRib(){
         translate([-flat_r, -rib_w/2, 0])              cube([rib_d, rib_w, 0.1]);
         translate([-flat_r, -rib_w/2, base_t - 0.1])   cube([rib_d, rib_w, 0.1]);
       }
-      // web above it, held inside the gap the blades sweep past, tapering
-      // inwards as it rises so it needs no support
+      // Web above it, held inside the gap the blades sweep past, tapering
+      // inwards as it rises so it needs no support. It runs the whole way up
+      // to the top of the ring, where it merges with the guide centred on this
+      // same extension - so the tongue, the rib and that guide are one piece of
+      // structure, and the ring is carried on the part that bolts to the rail.
       hull(){
         translate([-flat_r, -rib_w2/2, base_t])        cube([rib_d2, rib_w2, 0.1]);
         translate([-flat_r, -rib_w3/2, rib_h - 0.1])   cube([rib_d3, rib_w3, 0.1]);
