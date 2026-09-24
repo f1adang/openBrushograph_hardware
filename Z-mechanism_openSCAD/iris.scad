@@ -54,6 +54,23 @@ band_hook_r = 18;   // [12:0.5:24] radius of the hook on the ring
 hook_id    = 5.2;   // [3:0.1:9]   hole the band sits in
 hook_slot  = 2.4;   // [1.5:0.1:4] slot the band slips through
 hook_wall  = 2.2;   // [1.2:0.1:4] material round the hole
+/* [Ring guide] */
+// The ring had nothing to run on. It floated above the top blade, located only
+// by its three drive pins in their slots - so it rocked. Three guides now rise
+// from the base, in the gaps the blade sweep leaves: a flat seat that reaches
+// in under the ring's rim, and, on the two that the ring's own tabs never sweep
+// over, a wall standing just outside that rim. The seats stop it rocking, the
+// walls keep it centred, and the band pulls it down onto both. All of it is in
+// the base - the ring gains nothing to print.
+guide_ang   = 85;   // [0:1:119]   lane centre, from the first pivot post
+guide_half  = 9;    // [4:0.5:14]  half-width of one guide
+guide_gap   = 0.25; // [0.1:0.05:0.6] running clearance at the ring's rim
+guide_w     = 1.4;  // [1:0.1:3]   wall thickness
+guide_flare = 1.1;  // [0:0.1:3]   extra thickness where it meets the plate
+seat_w      = 1.3;  // [0.8:0.1:3] how far the seat reaches in under the rim
+ring_lift   = 1.6;  // [0.8:0.1:3] blade top -> ring underside
+blade_clear = 0.3;  // [0.15:0.05:0.8] gap left above the blades
+
 // buttress that roots the mounting tongue into the base
 gus_w      = 5.4;   // [4:0.2:14]  width across
 gus_d      = 2.3;   // [1:0.1:4]   depth behind the flat face
@@ -102,8 +119,24 @@ rib_w2   = 5.2;   rib_d2 = 1.6;          // where it passes the blades
 rib_w3   = 3.6;   rib_d3 = 1.2;          // at the top
 rib_h    = 8.3;                          // stops below the ring
 blade_z  = [for (i=[0:2]) base_t + i*(blade_t + blade_gap)];
-ring_z   = blade_z[2] + blade_t + 0.7;   // clears the tallest pivot stud
+ring_z   = blade_z[2] + blade_t + ring_lift;  // rides on the guide seats
 top_z    = ring_z + ring_t;
+guide_ri = R_ring + guide_gap;                  // wall's inner face
+guide_ro = guide_ri + guide_w;
+guide_rb = guide_ro + guide_flare;              // ...flared into the plate
+seat_ri  = R_ring - seat_w;                     // how far the seat reaches in
+seat_z0  = blade_z[2] + blade_t + blade_clear;  // underside of the seat
+guide_at = [for (i = [0:2]) (iris_clock + guide_ang + 120*i) % 360];
+// The seat must stay clear of the drive pins sweeping underneath it.
+assert(seat_ri > pin_rmax + pin_d/2 + 0.2, "seat_w too large: it fouls the drive pins");
+function angdiff(a, b) = abs(((a - b) % 360 + 540) % 360 - 180);
+// A guide can carry a wall only where neither of the ring's tabs ever sweeps.
+tab_at   = [(lock_ang + band_ang) % 360, tab_ang];
+tab_half = [asin((hook_id/2 + hook_wall)/R_hook_ring) + guide_half,
+            asin((lever_w/2)/lever_r) + guide_half];
+function walledAt(g) =
+  min([for (j = [0:1]) min([for (k = [0:8])
+        angdiff(g, tab_at[j] - psi_span*k/8) - tab_half[j]])]) > 0;
 
 echo(str("iris: bore ", 2*r_open, " -> ", 2*r_close, " mm,  blades swing ",
          th_close, " deg,  ring turns ", psi_span, " deg"));
@@ -156,9 +189,10 @@ module irisBase(){
   difference(){
     union(){
       cylinder(r = R_base, h = base_t);
-      // No guide rim: the three drive pins in three radial slots already centre
-      // the ring. The band hook is a hole cut in a flat lobe on the rim, in the
-      // base plate's own plane - nothing stands proud of it.
+      // Three guides in the blade-free lanes carry the ring; see above.
+      for (i = [0:2]) guidePost(guide_at[i], walledAt(guide_at[i]));
+      // The band hook is a hole cut in a flat lobe on the rim, in the base
+      // plate's own plane - nothing stands proud of it.
       rotate([0,0,lock_ang]) hull(){
         translate([R_base - 4, 0, 0])  cylinder(r = 4, h = base_t);
         translate([R_hook_base, 0, 0]) cylinder(r = hook_id/2 + hook_wall, h = base_t);
@@ -181,6 +215,23 @@ module irisBase(){
   // the tongue has to cross that flat, so it is added after the cut
   irisArm();
  }
+}
+
+// ---- guide that carries the ring ---------------------------------------
+// A stepped arc of revolution: seat below, wall above. Drawn as one r/z profile
+// whose outer face only ever narrows going up, so nothing overhangs and it
+// prints straight off the plate with the rest of the base.
+module guidePost(a, walled = true){
+  prof = concat(
+    [[guide_ri, 0], [guide_rb, 0], [guide_rb, base_t], [guide_ro, base_t + 2.5]],
+    walled ? [[guide_ro, top_z], [guide_ri, top_z], [guide_ri, ring_z]]
+           : [[guide_ro, ring_z]],
+    [[seat_ri, ring_z], [seat_ri, seat_z0], [guide_ri, seat_z0]]);
+  rotate([0,0,a]) intersection(){
+    rotate_extrude() polygon(prof);
+    linear_extrude(top_z + 1) polygon(concat([[0,0]],
+      [for (k = [-guide_half : guide_half/8 : guide_half]) [40*cos(k), 40*sin(k)]]));
+  }
 }
 
 // ---- band hook: a hole with a slot out to the edge ----------------------
@@ -287,4 +338,6 @@ module irisShow(bore = 8){
     translate([0,0,ring_z]) rotate([0,0,psi_of(th) - psi_of(0)]) irisRing();
   color("SteelBlue",0.6) translate([0,0,-8]) cylinder(d = bore, h = 30);
 }
-translate([axis_x, axis_y, axis_z]) irisShow(13);
+// Set show_assembly = false after including this file to get just the modules.
+show_assembly = true;
+if (show_assembly) translate([axis_x, axis_y, axis_z]) irisShow(13);
