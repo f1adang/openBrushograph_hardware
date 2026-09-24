@@ -55,8 +55,8 @@ band_ang   = 55;    // [10:1:300]  ring hook, measured round from that hook
 // finger tab: clear of both hooks and of the ring's drive slots
 tab_ang    = 125;   // [0:5:355]
 // teeth on the blades' gripping edges
-tooth_p    = 1.3;   // [0.6:0.1:3]  pitch along the edge
-tooth_d    = 0.30;  // [0.1:0.05:1] how deep they bite
+tooth_p    = 2.0;   // [0.6:0.1:3]  pitch along the edge
+tooth_d    = 0.65;  // [0.1:0.05:1] how deep they bite
 // manual lever
 lever_d    = 8.0;   // [5:0.5:14]   thumb boss diameter
 lever_h    = 5.0;   // [2:0.5:10]   how far it stands above the ring
@@ -92,14 +92,14 @@ seat_half   = 7;    // [3:0.5:12]  half-width of its seat, which reaches further
 guide_gap   = 0.25; // [0.1:0.05:0.6] running clearance at the ring's rim
 guide_w     = 1.4;  // [1:0.1:3]   wall thickness
 seat_w      = 0.6;  // [0.3:0.1:3] how far the seat reaches in under the rim
-post_up     = 0.4;  // [0.2:0.1:2] how far a pivot stud stands above its blade
+post_up     = 0.2;  // [0.2:0.1:2] how far a pivot stud stands above its blade
 
 // buttress that roots the mounting tongue into the base
 gus_w      = 5.4;   // [4:0.2:14]  width across
 gus_d      = 2.3;   // [1:0.1:4]   depth behind the flat face
 
 /* [Build] */
-blade_t    = 1.6;   // [1:0.1:4]
+blade_t    = 2.8;   // [1:0.1:4]
 base_t     = 3.6;   // [1.6:0.1:8]  also the root depth of the mount rib
 ring_t     = 3;     // [2:0.1:6]
 post_d     = 3.0;   // [2:0.1:5]
@@ -107,7 +107,7 @@ pin_d      = 2.6;   // [2:0.1:5]   slimmer, to clear the toothed edge
 play       = 0.3;   // [0.15:0.05:0.6]
 blade_gap  = 0.25;  // [0.1:0.05:0.6]
 wall       = 1.6;   // [1.2:0.1:4]
-quality    = 96;    // [24:8:160]
+quality    = 40;    // [24:8:160]
 
 /* [Hidden] */
 $fn = quality;
@@ -221,19 +221,30 @@ module irisBlade(){
   }
 }
 
+// ---- organic shapes ------------------------------------------------------
+module organicDisc(r, h) {
+    // A completely rounded pebble-like disc, max radius is r
+    rotate_extrude() {
+        hull() {
+            translate([0, 0]) square([max(0.1, r - h/2), h]);
+            translate([max(0.1, r - h/2), h/2]) circle(d=h);
+        }
+    }
+}
+
 // ---- the base ----------------------------------------------------------
 module irisBase(){
  union(){
   difference(){
     union(){
-      cylinder(r = R_base, h = base_t);
+      organicDisc(R_base, base_t);
       // Three guides in the blade-free lanes carry the ring; see above.
       for (g = guide_at) guidePost(g);
       // The band hook is a hole cut in a flat lobe on the rim, in the base
       // plate's own plane - nothing stands proud of it.
       rotate([0,0,lock_ang]) hull(){
-        translate([R_base - 4, 0, 0])  cylinder(r = 4, h = base_t);
-        translate([R_hook_base, 0, 0]) cylinder(r = hook_id/2 + hook_wall, h = base_t);
+        translate([R_base - 4, 0, 0])  organicDisc(4, base_t);
+        translate([R_hook_base, 0, 0]) organicDisc(hook_id/2 + hook_wall, base_t);
       }
       // Three pivot posts, each shouldered to its blade's height. No blade
       // ever reaches another post's spot - the nearest comes no closer than
@@ -242,7 +253,9 @@ module irisBase(){
       // is what retains that blade, now that the ring sits right on it.
       for (i = [0:2]) rotate([0,0,120*i + iris_clock]) translate([Rp, 0, 0]){
         if (blade_z[i] > base_t)
-          cylinder(d = post_d + 2.2, h = blade_z[i]);
+          // Enlarged base platform (shoulder) for the blades to glide on.
+          // Matches the diameter of the blade's pivot hub to eliminate wobble.
+          cylinder(d = post_d + 2*wall + 1.2, h = blade_z[i]);
         cylinder(d = post_d, h = ring_z);
       }
     }
@@ -264,15 +277,31 @@ module irisBase(){
 // seat, which stops at the ring's underside, and the wall outside it, which
 // carries on past the ring's rim to stop it moving outwards. Nothing overhangs
 // and nothing is cantilevered - the load runs straight down into the plate.
-module arcBand(r0, r1, half, hgt){
-  linear_extrude(hgt) polygon(concat(
-    [for (k = [-half : 2*half/16 : half]) [r0*cos(k), r0*sin(k)]],
-    [for (k = [half : -2*half/16 : -half]) [r1*cos(k), r1*sin(k)]]));
+module organicArcBand(r0, r1, half, hgt){
+  r_c = min(0.4, (r1-r0)/2.1, hgt/2.1);
+  rotate([0,0,-half])
+  rotate_extrude(angle=2*half) {
+    hull() {
+      translate([r0+r_c, r_c]) circle(r=r_c);
+      translate([r1-r_c, r_c]) circle(r=r_c);
+      translate([r0+r_c, hgt-r_c]) circle(r=r_c);
+      translate([r1-r_c, hgt-r_c]) circle(r=r_c);
+    }
+  }
 }
 module guidePost(a){
   rotate([0,0,a]){
-    arcBand(seat_ri,  guide_ri, seat_half,  ring_z);   // seat, under the rim
-    arcBand(guide_ri, guide_ro, guide_half, top_z);    // wall, outside the rim
+    difference() {
+      union() {
+        // Pad the seat upward slightly so the difference cut forms a perfect saddle
+        organicArcBand(seat_ri,  guide_ri + 0.1, seat_half,  ring_z + 0.5);
+        organicArcBand(guide_ri, guide_ro, guide_half, top_z);
+      }
+      // Subtract the organic ring shape to perfectly hug its curvature
+      translate([0,0,ring_z]) organicDisc(guide_ri, ring_t);
+      // Ensure the top is open so the ring can drop in during assembly
+      translate([0,0,ring_z + ring_t/2]) cylinder(r = guide_ri, h = top_z);
+    }
   }
 }
 
@@ -296,23 +325,50 @@ module hookCut(reach = 12){
 module mountRib(){
   difference(){
     union(){
-      // root, inside the plate's own thickness where no blade ever reaches:
-      // this is the wide part of the load path
+      // Base plate roots
       hull(){
-        translate([-flat_r, -rib_w/2, 0])              cube([rib_d, rib_w, 0.1]);
-        translate([-flat_r, -rib_w/2, base_t - 0.1])   cube([rib_d, rib_w, 0.1]);
+        translate([-flat_r, 0, 0]) cylinder(d=rib_w, h=0.1);
+        translate([-flat_r, -rib_w/2, base_t - 1]) sphere(r=1);
+        translate([-flat_r, rib_w/2, base_t - 1]) sphere(r=1);
+        translate([-flat_r + rib_d - 0.5, 0, base_t - 0.5]) sphere(r=0.5);
       }
-      // Web above it, held inside the gap the blades sweep past, tapering
-      // inwards as it rises so it needs no support. It runs the whole way up
-      // to the top of the ring, where it merges with the guide centred on this
-      // same extension - so the tongue, the rib and that guide are one piece of
-      // structure, and the ring is carried on the part that bolts to the rail.
+      // Trunk and branches
       hull(){
-        translate([-flat_r, -rib_w2/2, base_t])        cube([rib_d2, rib_w2, 0.1]);
-        translate([-flat_r, -rib_w3/2, rib_h - 0.1])   cube([rib_d3, rib_w3, 0.1]);
+        translate([-flat_r, -rib_w2/2, base_t]) sphere(r=rib_d2/2);
+        translate([-flat_r, rib_w2/2, base_t]) sphere(r=rib_d2/2);
+        translate([-flat_r + rib_d2/2, 0, base_t]) sphere(r=rib_d2/2);
+        
+        translate([-flat_r, -rib_w3/2, rib_h - 1]) sphere(r=0.6);
+        translate([-flat_r, rib_w3/2, rib_h - 1]) sphere(r=0.6);
+      }
+      // Organic side vine/root 1
+      hull(){
+        translate([-flat_r, -rib_w/2 + 0.8, 0.8]) sphere(r=0.8);
+        translate([-flat_r, -rib_w2/2 - 1.2, base_t + 1]) sphere(r=0.6);
+      }
+      hull(){
+        translate([-flat_r, -rib_w2/2 - 1.2, base_t + 1]) sphere(r=0.6);
+        translate([-flat_r, -rib_w3/2, rib_h - 2]) sphere(r=0.4);
+      }
+      // Organic side vine/root 2
+      hull(){
+        translate([-flat_r, rib_w/2 - 0.8, 0.8]) sphere(r=0.8);
+        translate([-flat_r, rib_w2/2 + 1.2, base_t + 1]) sphere(r=0.6);
+      }
+      hull(){
+        translate([-flat_r, rib_w2/2 + 1.2, base_t + 1]) sphere(r=0.6);
+        translate([-flat_r, rib_w3/2, rib_h - 2]) sphere(r=0.4);
+      }
+      // Central thick trunk bulk to strengthen it
+      hull(){
+        translate([-flat_r + rib_d/2, 0, base_t/2]) sphere(r=rib_d/2);
+        translate([-flat_r + rib_d2/2, 0, base_t*1.5]) sphere(r=rib_d2/2);
+        translate([-flat_r + rib_d3/2, 0, rib_h - 1]) sphere(r=rib_d3/2);
       }
     }
     translate([-flat_r - 60, -60, -60]) cube([60, 120, 120]);
+    // Safety cut to ensure we don't intrude on the blade path
+    translate([0,0,-1]) cylinder(r = r_open + 0.6, h = rib_h + 2);
   }
 }
 
@@ -335,26 +391,24 @@ module irisArm(){
 module irisRing(){
   difference(){
     union(){
-      cylinder(r = R_ring, h = ring_t);
+      organicDisc(R_ring, ring_t);
       // finger tab, and a tab over the ear carrying the lock slot
       // Manual lever: a rounded paddle with a raised thumb boss. Nothing
       // square to dig into a fingertip, and the boss gives something to push
       // sideways rather than pinching the ring's rim.
       rotate([0,0,tab_ang]){
         hull(){
-          translate([R_ring - 3, 0, 0]) cylinder(r = 4.0,       h = ring_t);
-          translate([lever_r,   0, 0])  cylinder(r = lever_w/2, h = ring_t);
+          translate([R_ring - 3, 0, 0]) organicDisc(4.0,       ring_t);
+          translate([lever_r,   0, 0])  organicDisc(lever_w/2, ring_t);
         }
         translate([lever_r, 0, 0]){
-          cylinder(d = lever_d, h = ring_t + lever_h);
-          translate([0, 0, ring_t + lever_h])
-            cylinder(d1 = lever_d, d2 = lever_d - 2.4, h = 1.2);   // eased top
+          organicDisc(lever_d/2, ring_t + lever_h);
         }
       }
       // tab carrying the ring's band hook
       rotate([0,0,lock_ang + band_ang]) hull(){
-        translate([R_ring - 3, 0, 0])    cylinder(r = 3.2, h = ring_t);
-        translate([R_hook_ring, 0, 0])   cylinder(r = hook_id/2 + hook_wall, h = ring_t);
+        translate([R_ring - 3, 0, 0])    organicDisc(3.2, ring_t);
+        translate([R_hook_ring, 0, 0])   organicDisc(hook_id/2 + hook_wall, ring_t);
       }
     }
     translate([0,0,-1]) cylinder(r = max(r_open + 1.2, pin_rmin - pin_d/2 - wall),
@@ -385,6 +439,15 @@ module irisShow(bore = 8){
     translate([0,0,ring_z]) rotate([0,0,psi_of(th) - psi_of(0)]) irisRing();
   color("SteelBlue",0.6) translate([0,0,-8]) cylinder(d = bore, h = 30);
 }
-// Set show_assembly = false after including this file to get just the modules.
-show_assembly = true;
-if (show_assembly) translate([axis_x, axis_y, axis_z]) irisShow(13);
+// Set part to anything other than "assembly" to export individual pieces.
+part = "assembly"; // [assembly:Assembly, base:Base, blade:Blade, ring:Ring]
+
+if (part == "assembly") {
+  translate([axis_x, axis_y, axis_z]) irisShow(13);
+} else if (part == "base") {
+  irisBase();
+} else if (part == "blade") {
+  irisBlade();
+} else if (part == "ring") {
+  irisRing();
+}

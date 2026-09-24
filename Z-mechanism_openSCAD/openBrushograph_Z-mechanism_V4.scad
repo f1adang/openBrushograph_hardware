@@ -11,11 +11,19 @@ $fn = 96;
 
 //Z_rail ();
 //Z_gearwheel ();
-Z_rackpen (M3_insert); // M3_screwhole, M3_insert
+//Z_rackpen (M3_insert); // M3_screwhole, M3_insert
 
 //translate([25.5,-6.8+tight,18.5]) penHolder();
 //translate([25.5,-6.8+tight,18.5]) brushInsert(6.5);
+
+// New Iris Clamp (replaces penHolder)
+use <iris.scad>
+translate([33, -6.68+tight, 13.15]) irisShow(13); // uncomment to preview assembly
+irisBase();  // uncomment to export base
+irisBlade(); // uncomment to export blade
+irisRing();  // uncomment to export ring
 //handWheel();
+
 
 //linear_extrude(32, center=true, scale=1) polygon(points=[[0,0],[2,2],[8,2],[10,0]]);
 
