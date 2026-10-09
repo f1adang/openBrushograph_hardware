@@ -275,7 +275,20 @@ def main():
     with silence_freecad():
         doc = FreeCAD.open(base_file)
     prog0.finish()
-    
+
+    # Python-backed features (the gears and racks from the Gears add-on) lose their
+    # Proxy when their add-on can't be imported. They then never recompute and keep
+    # the shape saved in the file, so every variant gets the saved variant's teeth.
+    broken = [obj for obj in doc.Objects if "Proxy" in obj.PropertiesList and obj.Proxy is None]
+    if broken:
+        print(f"{RED}{BOLD}These objects can't be recomputed, their add-on failed to load:{RESET}")
+        for obj in broken:
+            print(f"{RED}  - {obj.Label} ({obj.TypeId}){RESET}")
+        print(f"{YELLOW}The gears and racks need the 'Gears' workbench (freecad.gears).")
+        print(f"Install it with FreeCAD's Addon Manager, then run this again.{RESET}")
+        sys.stdout.flush()
+        os._exit(1)
+
     params_sheet = None
     for obj in doc.Objects:
         if obj.isDerivedFrom("Spreadsheet::Sheet") and ("param" in obj.Name.lower() or "param" in obj.Label.lower()):
