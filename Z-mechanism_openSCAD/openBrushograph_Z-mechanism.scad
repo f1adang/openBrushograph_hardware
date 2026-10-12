@@ -28,6 +28,8 @@ dist = 2.8;
 z_travel_range = 18; // [10:0.5:50]
 // Include cutouts for Rubber Holder on the Z Rail
 include_rubber_holder = false;
+// Axial gap between the rail's bottom motor-mount gusset and the gearwheel's side face
+gear_face_clearance = 1;
 
 /* [Gears and Wheels] */
 // How much of the available travel space to fill with teeth
@@ -75,6 +77,9 @@ export_brush_hole = 0;
 insert_depth = 10;
 // Starting Y position of the insert hole (controls how far out the front it starts)
 insert_start_y = 1;
+
+// X of the gearwheel's outer face; the gear extends rackWidth from it toward the motor
+gear_x = 10.5;
 
 // Uncomment if you have the StepMotor STL
 // color("DarkSlateGray") translate([-25,8,9.6]) rotate([90,0,90]) import("StepMotorModelScaled.stl");
@@ -206,9 +211,13 @@ module Z_rail() {
                 [14 - round_edge / 2, 18 - round_edge / 2],
                 [8, 18 - round_edge / 2]
               ]);
-          // Bottom reinforcement angle: enlarged to meet motor gearpin hole edge and connects seamlessly to adjacent guide block
-          translate([-1.75, 0, 0]) rotate([0, -90, 0])
-            linear_extrude(height=8.5 - round_edge, center=true)
+          // Bottom reinforcement angle: enlarged to meet motor gearpin hole edge. It reaches inside the
+          // gear's tip circle, so it runs from the motor face (X = -6) and stops gear_face_clearance
+          // short of the gearwheel's side face (both ends measured after the minkowski rounding).
+          gusset_x0 = -6 + round_edge / 2;
+          gusset_x1 = gear_x - rackWidth - gear_face_clearance - round_edge / 2;
+          translate([(gusset_x0 + gusset_x1) / 2, 0, 0]) rotate([0, -90, 0])
+            linear_extrude(height=gusset_x1 - gusset_x0, center=true)
               polygon(points=[
                 [2 + round_edge / 2, -10],
                 [2 + round_edge / 2, 1.5],
@@ -276,7 +285,7 @@ module Z_rack() {
 
 module Z_gearwheel() {
   // Stirnrad 
-  translate([10.5, 8, 0]) rotate([0, -90, 0]) mirror([1, 0, 0]) difference() {
+  translate([gear_x, 8, 0]) rotate([0, -90, 0]) mirror([1, 0, 0]) difference() {
           stirnrad(modul=1, zahnzahl=12, breite=rackWidth, bohrung=0, eingriffswinkel=25, schraegungswinkel=tooth_angle, optimiert=true);
           shaft();
         }
