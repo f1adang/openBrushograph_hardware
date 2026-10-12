@@ -196,6 +196,26 @@ module Z_rail() {
             translate([0, -18, 2]) cube([20, 50, 40 + ext_z]);
             translate([0, -3 + 2, -32 + 0]) cube([20, 50, 60]);
           }
+          // Reinforcement gusset connecting motor mount bar (Balken) to vertical structure (Vertikal)
+          translate([-3, 0, 0]) rotate([0, -90, 0])
+            linear_extrude(height=6 - round_edge, center=true)
+              polygon(points=[
+                [8, -10],
+                [32 - round_edge / 2, -10],
+                [32 - round_edge / 2, -5 - round_edge / 2],
+                [14 - round_edge / 2, 18 - round_edge / 2],
+                [8, 18 - round_edge / 2]
+              ]);
+          // Bottom reinforcement angle: enlarged to meet motor gearpin hole edge and connects seamlessly to adjacent guide block
+          translate([-1.75, 0, 0]) rotate([0, -90, 0])
+            linear_extrude(height=8.5 - round_edge, center=true)
+              polygon(points=[
+                [2 + round_edge / 2, -10],
+                [2 + round_edge / 2, 1.5],
+                [0 + round_edge / 2, -1],
+                [-7, -1],
+                [-7, -10]
+              ]);
         }
         $fn = $preview ? preview_fn : 30;
         sphere(d=round_edge);
